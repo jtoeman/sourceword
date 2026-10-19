@@ -1,0 +1,89 @@
+:root {
+  --bg: #fbfaf7;
+  --fg: #1d1d1b;
+  --muted: #6b6b66;
+  --accent: #2f5d50;
+  --bad: #9b2c2c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161614;
+    --fg: #eeeeea;
+    --muted: #9c9c94;
+    --accent: #7fb8a5;
+    --bad: #e08a8a;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+main {
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 2rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.source,
+.score,
+footer {
+  color: var(--muted);
+}
+
+form {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1.25rem 0 0.5rem;
+}
+
+input {
+  flex: 1;
+  min-width: 0;
+  font-size: 1.25rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--muted);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--fg);
+  text-transform: lowercase;
+}
+
+button {
+  font-size: 1rem;
+  padding: 0.6rem 1rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--accent);
+  color: var(--bg);
+  cursor: pointer;
+}
+
+#message {
+  min-height: 1.5rem;
+  margin: 0.25rem 0 1rem;
+}
+
+#message.bad {
+  color: var(--bad);
+}
+
+#found {
+  list-style: none;
+  padding: 0;
+  columns: 3;
+}
+
+footer {
+  margin-top: 2rem;
+  font-size: 0.8rem;
+}
