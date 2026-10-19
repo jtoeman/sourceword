@@ -1,9 +1,16 @@
-// Sourceword, build 0.1.1-b2
-// Scoring: 3-4 letters = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11 (Boggle table).
+// Sourceword, build 0.1.2-b3
+// Step 3: full scoring.
+// Base: 4-letter minimum (Normal). Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11.
+// Bonuses each equal one extra word of that length:
+//   - all letters: word uses every distinct letter of the source word
+//   - perfect reuse: word uses every letter the source word has, at full count (an anagram)
+//   - length complete: every word of one length is found
+//   - all words: every word in the list is found (valued at the longest length)
 // Step 2: puzzle loaded from puzzles.json by ET date; one play per day, saved on-device.
 
-const BUILD = "0.1.1-b2";
+const BUILD = "0.1.2-b3";
 const STORE_PREFIX = "sourceword:play:";
+const MIN_LENGTH = 4;
 
 const el = {
   form: document.getElementById("guess-form"),
@@ -13,6 +20,7 @@ const el = {
   score: document.getElementById("score"),
   count: document.getElementById("count"),
   found: document.getElementById("found"),
+  bonuses: document.getElementById("bonuses"),
   source: document.getElementById("source"),
   finish: document.getElementById("finish"),
   build: document.getElementById("build"),
@@ -54,13 +62,51 @@ function fitsSource(word, source) {
   return true;
 }
 
-function pointsFor(word) {
-  const n = word.length;
+// Boggle table by length. Also the value of one bonus word of that length.
+function pointsForLength(n) {
   if (n <= 4) return 1;
   if (n === 5) return 2;
   if (n === 6) return 3;
   if (n === 7) return 5;
   return 11;
+}
+
+// Scores a play from the found words alone, so bonuses are always derived, never stored.
+function scorePlay(found, puzzle) {
+  const source = puzzle.source;
+  const srcCounts = letterCounts(source);
+  const srcLetters = Object.keys(srcCounts);
+  const bonuses = [];
+
+  let base = 0;
+  for (const w of found) {
+    base += pointsForLength(w.length);
+
+    const counts = letterCounts(w);
+    if (srcLetters.every((ch) => counts[ch])) {
+      bonuses.push({ label: `all letters: ${w}`, points: pointsForLength(w.length) });
+    }
+    if (srcLetters.length === Object.keys(counts).length && srcLetters.every((ch) => counts[ch] === srcCounts[ch])) {
+      bonuses.push({ label: `perfect reuse: ${w}`, points: pointsForLength(w.length) });
+    }
+  }
+
+  // Length complete: every list word of that length is found.
+  const lengths = [...new Set(puzzle.words.map((w) => w.length))];
+  for (const n of lengths) {
+    const ofLength = puzzle.words.filter((w) => w.length === n);
+    if (ofLength.every((w) => found.includes(w))) {
+      bonuses.push({ label: `all ${n}-letter words`, points: pointsForLength(n) });
+    }
+  }
+
+  if (puzzle.words.length && found.length === puzzle.words.length) {
+    const longest = Math.max(...puzzle.words.map((w) => w.length));
+    bonuses.push({ label: "all words", points: pointsForLength(longest) });
+  }
+
+  const bonusTotal = bonuses.reduce((sum, b) => sum + b.points, 0);
+  return { base, bonuses, total: base + bonusTotal };
 }
 
 function say(text, isBad = false) {
@@ -86,28 +132,37 @@ function savePlay(date, play) {
 }
 
 function render(puzzle, play) {
-  let total = 0;
+  const result = scorePlay(play.found, puzzle);
+
   el.found.innerHTML = "";
   for (const w of play.found) {
-    total += pointsFor(w);
     const li = document.createElement("li");
-    li.textContent = w;
+    li.textContent = `${w} (+${pointsForLength(w.length)})`;
     el.found.appendChild(li);
   }
-  el.score.textContent = total;
+
+  el.bonuses.innerHTML = "";
+  for (const b of result.bonuses) {
+    const li = document.createElement("li");
+    li.textContent = `${b.label} (+${b.points})`;
+    el.bonuses.appendChild(li);
+  }
+
+  el.score.textContent = result.total;
   el.count.textContent = play.found.length;
 
   const over = play.done;
   el.input.disabled = over;
   el.button.disabled = over;
   el.finish.disabled = over;
+  return result;
 }
 
 function finish(date, puzzle, play) {
   play.done = true;
   savePlay(date, play);
-  render(puzzle, play);
-  say(`Done. ${play.found.length} of ${puzzle.words.length} found.`);
+  const result = render(puzzle, play);
+  say(`Done. ${play.found.length} of ${puzzle.words.length} found. Score ${result.total}.`);
 }
 
 function start(date, puzzle) {
@@ -126,17 +181,21 @@ function start(date, puzzle) {
     const word = el.input.value.trim().toLowerCase();
     el.input.value = "";
 
-    if (word.length < 3) return say("Too short.", true);
+    if (word.length < MIN_LENGTH) return say(`Too short. ${MIN_LENGTH} letters minimum.`, true);
     if (!/^[a-z]+$/.test(word)) return say("Letters only.", true);
     if (word === puzzle.source) return say("That's the source word.", true);
     if (!fitsSource(word, puzzle.source)) return say("Uses a letter not in the source word.", true);
     if (play.found.includes(word)) return say(`Already found: ${word}.`, true);
     if (!puzzle.words.includes(word)) return say(`Not in the list: ${word}.`, true);
 
+    const before = scorePlay(play.found, puzzle).bonuses.map((b) => b.label);
     play.found.push(word);
     savePlay(date, play);
-    say(`${word}: +${pointsFor(word)}`);
-    render(puzzle, play);
+    const result = render(puzzle, play);
+
+    const earned = result.bonuses.filter((b) => !before.includes(b.label));
+    const bonusText = earned.map((b) => ` ${b.label} +${b.points}.`).join("");
+    say(`${word}: +${pointsForLength(word.length)}.${bonusText}`);
 
     if (play.found.length === puzzle.words.length) finish(date, puzzle, play);
   });
