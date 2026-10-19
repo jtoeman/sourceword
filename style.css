@@ -230,6 +230,18 @@ footer {
   color: var(--fg);
 }
 
+footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.admin-toggle {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.6rem;
+}
+
 /* Test view (?debug=1). Remove before shipping. */
 #debug {
   margin-top: 2rem;

@@ -1,4 +1,4 @@
-// Sourceword, build 0.1.5-b10
+// Sourceword, build 0.1.6-b11
 // Step 3: full scoring.
 // Base: 4-letter minimum (Normal). Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11.
 // Bonuses each equal one extra word of that length:
@@ -8,13 +8,20 @@
 //   - all words: every word in the list is found (valued at the source word's length)
 // Step 2: puzzle loaded from puzzles.json by ET date; one play per day, saved on-device.
 
-const BUILD = "0.1.5-b10";
+const BUILD = "0.1.6-b11";
 const STORE_PREFIX = "sourceword:play:";
 const MIN_LENGTH = 4;
 // "normal" shows the words-left countdown. "hard" hides it (Hard mode arrives in step 5).
 const MODE = "normal";
-// Test view: add #debug to the URL (or ?debug=1 on a plain host) to list every valid word. Remove before shipping.
-const DEBUG = location.hash === "#debug" || new URLSearchParams(location.search).has("debug");
+// Admin test view: on-screen toggle in the footer, remembered on this device. Also on via #debug or ?debug=1. Remove before shipping.
+const ADMIN_KEY = "sourceword:admin";
+let ADMIN = location.hash === "#debug" || new URLSearchParams(location.search).has("debug");
+try {
+  if (localStorage.getItem(ADMIN_KEY) === "1") ADMIN = true;
+} catch {
+  // Storage blocked: the toggle still works for this visit.
+}
+let current = null; // { puzzle, play } for the admin view to redraw
 
 const el = {
   form: document.getElementById("guess-form"),
@@ -34,7 +41,23 @@ const el = {
   debugWords: document.getElementById("debug-words"),
   countdown: document.getElementById("countdown"),
   reveal: document.getElementById("reveal"),
+  adminToggle: document.getElementById("admin-toggle"),
 };
+
+function setAdmin(on) {
+  ADMIN = on;
+  try {
+    localStorage.setItem(ADMIN_KEY, on ? "1" : "0");
+  } catch {
+    // Storage blocked: the setting lasts until reload.
+  }
+  el.adminToggle.textContent = on ? "Admin: on" : "Admin: off";
+  if (current) renderDebug(current.puzzle, current.play);
+  else el.debug.hidden = !on;
+}
+
+el.adminToggle.textContent = ADMIN ? "Admin: on" : "Admin: off";
+el.adminToggle.addEventListener("click", () => setAdmin(!ADMIN));
 
 // Admin: show or hide the full word list in the test view.
 el.reveal.addEventListener("click", () => {
@@ -155,7 +178,10 @@ function renderSource(source, typed) {
 
 // Test view: every valid word grouped by length, found words highlighted.
 function renderDebug(puzzle, play) {
-  if (!DEBUG) return;
+  if (!ADMIN) {
+    el.debug.hidden = true;
+    return;
+  }
   el.debug.hidden = false;
   if (el.debugWords.dataset.ready !== "1") {
     el.debugWords.hidden = true;
@@ -223,6 +249,7 @@ function savePlay(date, play) {
 }
 
 function render(puzzle, play) {
+  current = { puzzle, play };
   const result = scorePlay(play.found, puzzle);
 
   el.found.innerHTML = "";
