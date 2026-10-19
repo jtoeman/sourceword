@@ -14,4 +14,7 @@ Open `index.html` in a browser. No build step.
 
 ## Word list
 
-`words.json` is the checking list: every guess must be in it. It comes from the Wordnik word list (https://github.com/wordnik/wordlist), MIT licensed. The license text is in `LICENSE-wordnik.txt`.
+`words.json` is the checking list: every guess must be in it. It is the intersection of two lists:
+
+- the Wordnik word list (https://github.com/wordnik/wordlist), MIT licensed. The license text is in `LICENSE-wordnik.txt`.
+- the common-word list `popular.txt` from https://github.com/dolph/dictionary, whose README says it is built from Wiktionary word-frequency data. The shipped list is derived from that data, so it needs share-alike attribution (CC BY-SA). This license is taken from the README and has not been checked against the primary source yet.
