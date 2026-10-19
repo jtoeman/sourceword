@@ -14,9 +14,10 @@
     </header>
 
     <form id="guess-form" autocomplete="off">
-      <input id="guess" type="text" inputmode="text" autocapitalize="off" spellcheck="false" aria-label="Your word" placeholder="Type a word">
+      <input id="guess" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" autofocus aria-label="Your word" placeholder="Type a word">
       <button type="submit">Enter</button>
     </form>
+    <p><button type="button" id="finish" class="secondary">I'm done</button></p>
 
     <p id="message" role="status" aria-live="polite"></p>
 
@@ -27,7 +28,7 @@
     </section>
 
     <footer>
-      <span class="build">build 0.1.0-b1</span>
+      <span class="build" id="build"></span>
     </footer>
   </main>
   <script src="app.js"></script>

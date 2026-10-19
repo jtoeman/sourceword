@@ -87,3 +87,20 @@ footer {
   margin-top: 2rem;
   font-size: 0.8rem;
 }
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--muted);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+}
+
+input:disabled {
+  opacity: 0.5;
+}
