@@ -1,4 +1,4 @@
-// Sourceword, build 0.1.4-b7
+// Sourceword, build 0.1.4-b8
 // Step 3: full scoring.
 // Base: 4-letter minimum (Normal). Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11.
 // Bonuses each equal one extra word of that length:
@@ -8,7 +8,7 @@
 //   - all words: every word in the list is found (valued at the source word's length)
 // Step 2: puzzle loaded from puzzles.json by ET date; one play per day, saved on-device.
 
-const BUILD = "0.1.4-b7";
+const BUILD = "0.1.4-b8";
 const STORE_PREFIX = "sourceword:play:";
 const MIN_LENGTH = 4;
 // Test view: add #debug to the URL (or ?debug=1 on a plain host) to list every valid word. Remove before shipping.
@@ -196,7 +196,8 @@ function render(puzzle, play) {
   const result = scorePlay(play.found, puzzle);
 
   el.found.innerHTML = "";
-  for (const w of play.found) {
+  const sorted = play.found.slice().sort((a, b) => a.length - b.length || a.localeCompare(b));
+  for (const w of sorted) {
     const li = document.createElement("li");
     li.textContent = `${w} (+${pointsForLength(w.length)})`;
     el.found.appendChild(li);
