@@ -1,4 +1,4 @@
-// Sourceword, build 0.1.7-b12
+// Sourceword, build 0.1.8-b13
 // Step 3: full scoring.
 // Base: 4-letter minimum (Normal). Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11.
 // Bonuses each equal one extra word of that length:
@@ -8,7 +8,7 @@
 //   - all words: every word in the list is found (valued at the source word's length)
 // Step 2: puzzle loaded from puzzles.json by ET date; one play per day, saved on-device.
 
-const BUILD = "0.1.7-b12";
+const BUILD = "0.1.8-b13";
 const STORE_PREFIX = "sourceword:play:";
 const MIN_LENGTH = 4;
 // "normal" shows the words-left countdown. "hard" hides it (Hard mode arrives in step 5).
@@ -40,6 +40,7 @@ const el = {
   debugSummary: document.getElementById("debug-summary"),
   debugWords: document.getElementById("debug-words"),
   countdown: document.getElementById("countdown"),
+  lengths: document.getElementById("lengths"),
   reveal: document.getElementById("reveal"),
   adminToggle: document.getElementById("admin-toggle"),
 };
@@ -161,6 +162,20 @@ function scorePlay(found, puzzle) {
   return { base, bonuses, total: base + bonusTotal };
 }
 
+// Words left by length, from MIN_LENGTH up to the longest valid word: "4 (15), 5 (11), 6 (0)".
+function lengthsLeft(puzzle, play) {
+  if (!puzzle.words.length) return "";
+  const total = {};
+  for (const w of puzzle.words) total[w.length] = (total[w.length] || 0) + 1;
+  const max = Math.max(...puzzle.words.map((w) => w.length));
+  const parts = [];
+  for (let n = MIN_LENGTH; n <= max; n++) {
+    const found = play.found.filter((w) => w.length === n).length;
+    parts.push(`${n} (${(total[n] || 0) - found})`);
+  }
+  return parts.join(", ");
+}
+
 // Source word as letter spans. Letters the typed text uses are greyed out.
 function renderSource(source, typed) {
   const avail = letterCounts(typed.toLowerCase().replace(/[^a-z]/g, ""));
@@ -272,9 +287,12 @@ function render(puzzle, play) {
 
   if (MODE === "hard") {
     el.countdown.hidden = true;
+    el.lengths.hidden = true;
   } else {
     el.countdown.hidden = false;
     el.countdown.textContent = `${puzzle.words.length - play.found.length} words left`;
+    el.lengths.hidden = false;
+    el.lengths.textContent = lengthsLeft(puzzle, play);
   }
 
   const over = play.done;

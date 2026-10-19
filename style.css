@@ -94,6 +94,17 @@ h2 {
   display: none;
 }
 
+.lengths {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.lengths[hidden] {
+  display: none;
+}
+
 .source strong {
   display: block;
   color: var(--accent);
