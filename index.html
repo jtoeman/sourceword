@@ -3,12 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17142A">
   <title>Sourceword</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <main>
     <header>
+      <div class="top">
+        <span id="date" class="date"></span>
+        <span class="build" id="build"></span>
+      </div>
       <h1>Sourceword</h1>
       <p class="source">Source word: <strong id="source"></strong></p>
     </header>
@@ -17,20 +22,26 @@
       <input id="guess" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" autofocus aria-label="Your word" placeholder="Type a word">
       <button type="submit">Enter</button>
     </form>
-    <p><button type="button" id="finish" class="secondary">I'm done</button></p>
+    <p class="actions"><button type="button" id="finish" class="secondary">I'm done</button></p>
 
     <p id="message" role="status" aria-live="polite"></p>
 
     <section>
-      <p class="score">Score: <strong id="score">0</strong></p>
-      <h2>Found (<span id="count">0</span>)</h2>
-      <ul id="found"></ul>
+      <p class="score">Score <strong id="score">0</strong></p>
+      <h2>Found <span id="count">0</span></h2>
+      <ul id="found" class="chips"></ul>
       <h2>Bonuses</h2>
-      <ul id="bonuses"></ul>
+      <ul id="bonuses" class="chips"></ul>
+    </section>
+
+    <section id="debug" hidden>
+      <h2>Test view</h2>
+      <p id="debug-summary" class="debug-summary"></p>
+      <div id="debug-words"></div>
     </section>
 
     <footer>
-      <span class="build" id="build"></span>
+      <a class="brand" href="https://froobaloo.com/">froobaloo</a>
     </footer>
   </main>
   <script src="app.js"></script>

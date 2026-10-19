@@ -1,4 +1,4 @@
-// Sourceword, build 0.1.3-b6
+// Sourceword, build 0.1.4-b7
 // Step 3: full scoring.
 // Base: 4-letter minimum (Normal). Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11.
 // Bonuses each equal one extra word of that length:
@@ -8,9 +8,11 @@
 //   - all words: every word in the list is found (valued at the source word's length)
 // Step 2: puzzle loaded from puzzles.json by ET date; one play per day, saved on-device.
 
-const BUILD = "0.1.3-b6";
+const BUILD = "0.1.4-b7";
 const STORE_PREFIX = "sourceword:play:";
 const MIN_LENGTH = 4;
+// Test view: add #debug to the URL (or ?debug=1 on a plain host) to list every valid word. Remove before shipping.
+const DEBUG = location.hash === "#debug" || new URLSearchParams(location.search).has("debug");
 
 const el = {
   form: document.getElementById("guess-form"),
@@ -24,6 +26,10 @@ const el = {
   source: document.getElementById("source"),
   finish: document.getElementById("finish"),
   build: document.getElementById("build"),
+  date: document.getElementById("date"),
+  debug: document.getElementById("debug"),
+  debugSummary: document.getElementById("debug-summary"),
+  debugWords: document.getElementById("debug-words"),
 };
 
 el.build.textContent = `build ${BUILD}`;
@@ -122,6 +128,48 @@ function scorePlay(found, puzzle) {
   return { base, bonuses, total: base + bonusTotal };
 }
 
+// Test view: every valid word grouped by length, found words highlighted.
+function renderDebug(puzzle, play) {
+  if (!DEBUG) return;
+  el.debug.hidden = false;
+
+  const found = new Set(play.found);
+  const srcCounts = letterCounts(puzzle.source);
+  const letters = Object.keys(srcCounts)
+    .sort()
+    .map((c) => (srcCounts[c] > 1 ? `${c} x${srcCounts[c]}` : c))
+    .join(", ");
+  el.debugSummary.textContent =
+    `Build ${BUILD}. Source "${puzzle.source}" (letters: ${letters}). ` +
+    `${puzzle.words.length} valid words, ${found.size} found. Minimum length ${MIN_LENGTH}. ` +
+    `Bonus: all letters, perfect reuse (each source letter used at full count), every word of a length, all words (worth ${pointsForLength(puzzle.source.length)}).`;
+
+  const byLength = {};
+  for (const w of puzzle.words) {
+    if (!byLength[w.length]) byLength[w.length] = [];
+    byLength[w.length].push(w);
+  }
+
+  el.debugWords.innerHTML = "";
+  for (const n of Object.keys(byLength).map(Number).sort((a, b) => a - b)) {
+    const words = byLength[n].slice().sort();
+    const got = words.filter((w) => found.has(w)).length;
+
+    const h = document.createElement("h3");
+    h.textContent = `${n} letters: ${got} of ${words.length} found, ${pointsForLength(n)} pt each`;
+    el.debugWords.appendChild(h);
+
+    const ul = document.createElement("ul");
+    for (const w of words) {
+      const li = document.createElement("li");
+      li.textContent = w;
+      if (found.has(w)) li.className = "got";
+      ul.appendChild(li);
+    }
+    el.debugWords.appendChild(ul);
+  }
+}
+
 function say(text, isBad = false) {
   el.message.textContent = text;
   el.message.classList.toggle("bad", isBad);
@@ -168,6 +216,7 @@ function render(puzzle, play) {
   el.input.disabled = over;
   el.button.disabled = over;
   el.finish.disabled = over;
+  renderDebug(puzzle, play);
   return result;
 }
 
@@ -220,6 +269,7 @@ function start(date, puzzle) {
 async function init() {
   const date = todayET();
   document.title = `Sourceword (${BUILD})`;
+  el.date.textContent = date;
   try {
     const puzzles = await loadPuzzles();
     const puzzle = puzzles[date];
