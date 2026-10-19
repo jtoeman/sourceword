@@ -1,18 +1,29 @@
-// Sourceword, build 0.1.8-b13
-// Step 3: full scoring.
-// Base: 4-letter minimum (Normal). Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11.
+// Sourceword, build 0.1.9-b14
+// Scoring: base by length (Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11), 4-letter minimum.
 // Bonuses each equal one extra word of that length:
 //   - all letters: word uses every distinct letter of the source word
 //   - perfect reuse: word uses every letter the source word has, at full count (an anagram)
 //   - length complete: every word of one length is found
 //   - all words: every word in the list is found (valued at the source word's length)
-// Step 2: puzzle loaded from puzzles.json by ET date; one play per day, saved on-device.
+// Goal: "all" counts every valid word. "ten" counts up to 10 words per length; extra words still score.
+// One play per day, saved on-device. Puzzle loaded from puzzles.json by ET date.
 
-const BUILD = "0.1.8-b13";
+const BUILD = "0.1.9-b14";
 const STORE_PREFIX = "sourceword:play:";
 const MIN_LENGTH = 4;
-// "normal" shows the words-left countdown. "hard" hides it (Hard mode arrives in step 5).
+const CORE_CAP = 10;
+// "normal" shows the countdown. "hard" hides it (Hard mode arrives in step 5).
 const MODE = "normal";
+
+// Goal toggle, remembered on this device.
+const GOAL_KEY = "sourceword:goal";
+let GOAL = "all";
+try {
+  if (localStorage.getItem(GOAL_KEY) === "ten") GOAL = "ten";
+} catch {
+  // Storage blocked: the toggle works for this visit.
+}
+
 // Admin test view: on-screen toggle in the footer, remembered on this device. Also on via #debug or ?debug=1. Remove before shipping.
 const ADMIN_KEY = "sourceword:admin";
 let ADMIN = location.hash === "#debug" || new URLSearchParams(location.search).has("debug");
@@ -21,7 +32,7 @@ try {
 } catch {
   // Storage blocked: the toggle still works for this visit.
 }
-let current = null; // { puzzle, play } for the admin view to redraw
+let current = null; // { puzzle, play } for redraws
 
 const el = {
   form: document.getElementById("guess-form"),
@@ -43,6 +54,8 @@ const el = {
   lengths: document.getElementById("lengths"),
   reveal: document.getElementById("reveal"),
   adminToggle: document.getElementById("admin-toggle"),
+  goalAll: document.getElementById("goal-all"),
+  goalTen: document.getElementById("goal-ten"),
 };
 
 function setAdmin(on) {
@@ -57,8 +70,27 @@ function setAdmin(on) {
   else el.debug.hidden = !on;
 }
 
+function syncGoalButtons() {
+  el.goalAll.setAttribute("aria-pressed", GOAL === "all" ? "true" : "false");
+  el.goalTen.setAttribute("aria-pressed", GOAL === "ten" ? "true" : "false");
+}
+
+function setGoal(goal) {
+  GOAL = goal;
+  try {
+    localStorage.setItem(GOAL_KEY, goal);
+  } catch {
+    // Storage blocked: the setting lasts until reload.
+  }
+  syncGoalButtons();
+  if (current) render(current.puzzle, current.play);
+}
+
 el.adminToggle.textContent = ADMIN ? "Admin: on" : "Admin: off";
 el.adminToggle.addEventListener("click", () => setAdmin(!ADMIN));
+el.goalAll.addEventListener("click", () => setGoal("all"));
+el.goalTen.addEventListener("click", () => setGoal("ten"));
+syncGoalButtons();
 
 // Admin: show or hide the full word list in the test view.
 el.reveal.addEventListener("click", () => {
@@ -87,7 +119,7 @@ async function loadPuzzles() {
   return res.json();
 }
 
-// Checking list (Wordnik, MIT): every guess must be in it.
+// Checking list (common words, see README): every guess must be in it.
 async function loadWords() {
   if (window.WORD_DATA) return window.WORD_DATA;
   const res = await fetch("words.json", { cache: "force-cache" });
@@ -162,18 +194,28 @@ function scorePlay(found, puzzle) {
   return { base, bonuses, total: base + bonusTotal };
 }
 
-// Words left by length, from MIN_LENGTH up to the longest valid word: "4 (15), 5 (11), 6 (0)".
-function lengthsLeft(puzzle, play) {
-  if (!puzzle.words.length) return "";
+// Words left toward the goal, and words left by length (MIN_LENGTH up to the longest word).
+// "all": every valid word counts. "ten": each length counts up to CORE_CAP.
+function progress(puzzle, play) {
   const total = {};
   for (const w of puzzle.words) total[w.length] = (total[w.length] || 0) + 1;
-  const max = Math.max(...puzzle.words.map((w) => w.length));
-  const parts = [];
+  const found = {};
+  for (const w of play.found) found[w.length] = (found[w.length] || 0) + 1;
+
+  const lengths = Object.keys(total).map(Number);
+  const max = lengths.length ? Math.max(...lengths) : 0;
+  const cap = (n) => (GOAL === "ten" ? Math.min(CORE_CAP, n) : n);
+
+  let remaining = 0;
+  const perLength = [];
   for (let n = MIN_LENGTH; n <= max; n++) {
-    const found = play.found.filter((w) => w.length === n).length;
-    parts.push(`${n} (${(total[n] || 0) - found})`);
+    const goalN = cap(total[n] || 0);
+    const foundN = Math.min(found[n] || 0, goalN);
+    const left = goalN - foundN;
+    remaining += left;
+    perLength.push(`${n} (${left})`);
   }
-  return parts.join(", ");
+  return { remaining, text: perLength.join(", ") };
 }
 
 // Source word as letter spans. Letters the typed text uses are greyed out.
@@ -191,7 +233,7 @@ function renderSource(source, typed) {
   }
 }
 
-// Test view: every valid word grouped by length, found words highlighted.
+// Admin test view: every valid word grouped by length, found words highlighted.
 function renderDebug(puzzle, play) {
   if (!ADMIN) {
     el.debug.hidden = true;
@@ -212,7 +254,7 @@ function renderDebug(puzzle, play) {
     .join(", ");
   el.debugSummary.textContent =
     `Build ${BUILD}. Source "${puzzle.source}" (letters: ${letters}). ` +
-    `${puzzle.words.length} valid words, ${found.size} found. Minimum length ${MIN_LENGTH}. ` +
+    `${puzzle.words.length} valid words, ${found.size} found. Minimum length ${MIN_LENGTH}. Goal: ${GOAL === "ten" ? "10 per length" : "all words"}. ` +
     `Bonus: all letters, perfect reuse (each source letter used at full count), every word of a length, all words (worth ${pointsForLength(puzzle.source.length)}).`;
 
   const byLength = {};
@@ -289,10 +331,15 @@ function render(puzzle, play) {
     el.countdown.hidden = true;
     el.lengths.hidden = true;
   } else {
+    const p = progress(puzzle, play);
     el.countdown.hidden = false;
-    el.countdown.textContent = `${puzzle.words.length - play.found.length} words left`;
+    if (GOAL === "ten") {
+      el.countdown.textContent = p.remaining > 0 ? `${p.remaining} core words left` : "Core complete";
+    } else {
+      el.countdown.textContent = `${p.remaining} words left`;
+    }
     el.lengths.hidden = false;
-    el.lengths.textContent = lengthsLeft(puzzle, play);
+    el.lengths.textContent = p.text;
   }
 
   const over = play.done;
@@ -336,13 +383,17 @@ function start(date, puzzle) {
     if (!puzzle.wordSet.has(word)) return say(`Not in the word list: ${word}.`, true);
 
     const before = scorePlay(play.found, puzzle).bonuses.map((b) => b.label);
+    const coreBefore = progress(puzzle, play).remaining;
     play.found.push(word);
     savePlay(date, play);
     const result = render(puzzle, play);
 
     const earned = result.bonuses.filter((b) => !before.includes(b.label));
     const bonusText = earned.map((b) => ` ${b.label} +${b.points}.`).join("");
-    say(`${word}: +${pointsForLength(word.length)}.${bonusText}`);
+    const coreText = GOAL === "ten" && coreBefore > 0 && progress(puzzle, play).remaining === 0
+      ? " Core complete. Bonus words still count."
+      : "";
+    say(`${word}: +${pointsForLength(word.length)}.${bonusText}${coreText}`);
 
     if (play.found.length === puzzle.words.length) finish(date, puzzle, play);
   });

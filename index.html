@@ -15,20 +15,27 @@
         <span class="build" id="build"></span>
       </div>
       <h1>Sourceword</h1>
-      <p class="source">Source word: <strong id="source"></strong></p>
+      <p class="source"><strong id="source"></strong></p>
     </header>
+
+    <div class="goal" role="group" aria-label="Goal">
+      <button type="button" class="seg" id="goal-all" aria-pressed="true">All words</button>
+      <button type="button" class="seg" id="goal-ten" aria-pressed="false">10 per length</button>
+    </div>
 
     <form id="guess-form" autocomplete="off">
       <input id="guess" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" autofocus aria-label="Your word" placeholder="Type a word">
       <button type="submit">Enter</button>
+      <button type="button" id="finish" class="secondary">I'm done</button>
     </form>
-    <p class="actions"><button type="button" id="finish" class="secondary">I'm done</button></p>
 
     <p id="message" role="status" aria-live="polite"></p>
 
     <section>
-      <p class="score">Score <strong id="score">0</strong></p>
-      <p class="countdown" id="countdown"></p>
+      <div class="stats">
+        <p class="score">Score <strong id="score">0</strong></p>
+        <p class="countdown" id="countdown"></p>
+      </div>
       <p class="lengths" id="lengths"></p>
       <h2>Found <span id="count">0</span></h2>
       <ul id="found" class="chips"></ul>

@@ -82,8 +82,17 @@ h2 {
   opacity: 0.22;
 }
 
+.stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin-top: 1rem;
+}
+
 .countdown {
-  margin: 0.25rem 0 0;
+  margin: 0;
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--fg);
@@ -103,6 +112,33 @@ h2 {
 
 .lengths[hidden] {
   display: none;
+}
+
+.goal {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  margin-top: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.goal .seg {
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.goal .seg[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--fg);
+}
+
+form button {
+  flex: none;
 }
 
 .source strong {
@@ -194,7 +230,7 @@ input:disabled {
 }
 
 .score strong {
-  color: var(--fg);
+  color: var(--accent);
   font-size: 1.5rem;
   font-variant-numeric: tabular-nums;
 }
