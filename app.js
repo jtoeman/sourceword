@@ -1,4 +1,4 @@
-// Sourceword, build 0.1.2-b4
+// Sourceword, build 0.1.3-b5
 // Step 3: full scoring.
 // Base: 4-letter minimum (Normal). Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11.
 // Bonuses each equal one extra word of that length:
@@ -8,7 +8,7 @@
 //   - all words: every word in the list is found (valued at the source word's length)
 // Step 2: puzzle loaded from puzzles.json by ET date; one play per day, saved on-device.
 
-const BUILD = "0.1.2-b4";
+const BUILD = "0.1.3-b5";
 const STORE_PREFIX = "sourceword:play:";
 const MIN_LENGTH = 4;
 
@@ -45,6 +45,19 @@ async function loadPuzzles() {
   const res = await fetch("puzzles.json", { cache: "no-cache" });
   if (!res.ok) throw new Error(`puzzles.json: HTTP ${res.status}`);
   return res.json();
+}
+
+// Checking list (Wordnik, MIT): every guess must be in it.
+async function loadWords() {
+  if (window.WORD_DATA) return window.WORD_DATA;
+  const res = await fetch("words.json", { cache: "force-cache" });
+  if (!res.ok) throw new Error(`words.json: HTTP ${res.status}`);
+  return res.json();
+}
+
+// The day's valid words: checking-list words that fit the source, at the minimum length.
+function validWordsFor(source, allWords) {
+  return allWords.filter((w) => w.length >= MIN_LENGTH && w !== source && fitsSource(w, source));
 }
 
 function letterCounts(word) {
@@ -186,7 +199,7 @@ function start(date, puzzle) {
     if (word === puzzle.source) return say("That's the source word.", true);
     if (!fitsSource(word, puzzle.source)) return say("Uses a letter not in the source word.", true);
     if (play.found.includes(word)) return say(`Already found: ${word}.`, true);
-    if (!puzzle.words.includes(word)) return say(`Not in the list: ${word}.`, true);
+    if (!puzzle.wordSet.has(word)) return say(`Not in the word list: ${word}.`, true);
 
     const before = scorePlay(play.found, puzzle).bonuses.map((b) => b.label);
     play.found.push(word);
@@ -217,6 +230,9 @@ async function init() {
       el.finish.disabled = true;
       return say(`No puzzle for ${date}.`, true);
     }
+    const allWords = await loadWords();
+    puzzle.words = validWordsFor(puzzle.source, allWords);
+    puzzle.wordSet = new Set(puzzle.words);
     start(date, puzzle);
   } catch (err) {
     say("Couldn't load today's puzzle.", true);
