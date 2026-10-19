@@ -74,6 +74,26 @@ h2 {
   color: var(--muted);
 }
 
+.source strong span {
+  transition: opacity 0.15s ease;
+}
+
+.source strong span.used {
+  opacity: 0.22;
+}
+
+.countdown {
+  margin: 0.25rem 0 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown[hidden] {
+  display: none;
+}
+
 .source strong {
   display: block;
   color: var(--accent);

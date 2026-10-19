@@ -1,4 +1,4 @@
-// Sourceword, build 0.1.4-b9
+// Sourceword, build 0.1.5-b10
 // Step 3: full scoring.
 // Base: 4-letter minimum (Normal). Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11.
 // Bonuses each equal one extra word of that length:
@@ -8,9 +8,11 @@
 //   - all words: every word in the list is found (valued at the source word's length)
 // Step 2: puzzle loaded from puzzles.json by ET date; one play per day, saved on-device.
 
-const BUILD = "0.1.4-b9";
+const BUILD = "0.1.5-b10";
 const STORE_PREFIX = "sourceword:play:";
 const MIN_LENGTH = 4;
+// "normal" shows the words-left countdown. "hard" hides it (Hard mode arrives in step 5).
+const MODE = "normal";
 // Test view: add #debug to the URL (or ?debug=1 on a plain host) to list every valid word. Remove before shipping.
 const DEBUG = location.hash === "#debug" || new URLSearchParams(location.search).has("debug");
 
@@ -30,7 +32,15 @@ const el = {
   debug: document.getElementById("debug"),
   debugSummary: document.getElementById("debug-summary"),
   debugWords: document.getElementById("debug-words"),
+  countdown: document.getElementById("countdown"),
+  reveal: document.getElementById("reveal"),
 };
+
+// Admin: show or hide the full word list in the test view.
+el.reveal.addEventListener("click", () => {
+  el.debugWords.hidden = !el.debugWords.hidden;
+  el.reveal.textContent = el.debugWords.hidden ? "Show all words" : "Hide all words";
+});
 
 el.build.textContent = `build ${BUILD}`;
 
@@ -128,10 +138,30 @@ function scorePlay(found, puzzle) {
   return { base, bonuses, total: base + bonusTotal };
 }
 
+// Source word as letter spans. Letters the typed text uses are greyed out.
+function renderSource(source, typed) {
+  const avail = letterCounts(typed.toLowerCase().replace(/[^a-z]/g, ""));
+  el.source.innerHTML = "";
+  for (const ch of source) {
+    const span = document.createElement("span");
+    span.textContent = ch;
+    if (avail[ch]) {
+      avail[ch]--;
+      span.className = "used";
+    }
+    el.source.appendChild(span);
+  }
+}
+
 // Test view: every valid word grouped by length, found words highlighted.
 function renderDebug(puzzle, play) {
   if (!DEBUG) return;
   el.debug.hidden = false;
+  if (el.debugWords.dataset.ready !== "1") {
+    el.debugWords.hidden = true;
+    el.reveal.textContent = "Show all words";
+    el.debugWords.dataset.ready = "1";
+  }
 
   const found = new Set(play.found);
   const srcCounts = letterCounts(puzzle.source);
@@ -213,6 +243,13 @@ function render(puzzle, play) {
   el.score.textContent = result.total;
   el.count.textContent = play.found.length;
 
+  if (MODE === "hard") {
+    el.countdown.hidden = true;
+  } else {
+    el.countdown.hidden = false;
+    el.countdown.textContent = `${puzzle.words.length - play.found.length} words left`;
+  }
+
   const over = play.done;
   el.input.disabled = over;
   el.button.disabled = over;
@@ -230,7 +267,8 @@ function finish(date, puzzle, play) {
 
 function start(date, puzzle) {
   const play = loadPlay(date);
-  el.source.textContent = puzzle.source;
+  renderSource(puzzle.source, "");
+  el.input.addEventListener("input", () => renderSource(puzzle.source, el.input.value));
   render(puzzle, play);
 
   if (play.done) {
@@ -243,6 +281,7 @@ function start(date, puzzle) {
     e.preventDefault();
     const word = el.input.value.trim().toLowerCase();
     el.input.value = "";
+    renderSource(puzzle.source, "");
 
     if (word.length < MIN_LENGTH) return say(`Too short. ${MIN_LENGTH} letters minimum.`, true);
     if (!/^[a-z]+$/.test(word)) return say("Letters only.", true);
