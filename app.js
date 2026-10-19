@@ -1,14 +1,14 @@
-// Sourceword, build 0.1.2-b3
+// Sourceword, build 0.1.2-b4
 // Step 3: full scoring.
 // Base: 4-letter minimum (Normal). Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11.
 // Bonuses each equal one extra word of that length:
 //   - all letters: word uses every distinct letter of the source word
 //   - perfect reuse: word uses every letter the source word has, at full count (an anagram)
 //   - length complete: every word of one length is found
-//   - all words: every word in the list is found (valued at the longest length)
+//   - all words: every word in the list is found (valued at the source word's length)
 // Step 2: puzzle loaded from puzzles.json by ET date; one play per day, saved on-device.
 
-const BUILD = "0.1.2-b3";
+const BUILD = "0.1.2-b4";
 const STORE_PREFIX = "sourceword:play:";
 const MIN_LENGTH = 4;
 
@@ -100,9 +100,9 @@ function scorePlay(found, puzzle) {
     }
   }
 
+  // Valued at the length of the source word, the entire word.
   if (puzzle.words.length && found.length === puzzle.words.length) {
-    const longest = Math.max(...puzzle.words.map((w) => w.length));
-    bonuses.push({ label: "all words", points: pointsForLength(longest) });
+    bonuses.push({ label: "all words", points: pointsForLength(source.length) });
   }
 
   const bonusTotal = bonuses.reduce((sum, b) => sum + b.points, 0);
