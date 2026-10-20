@@ -327,6 +327,22 @@ footer {
   padding: 0.3rem 0.6rem;
 }
 
+/* Mode row, under the source word. */
+.mode-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+}
+
+.mode-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 /* Stats and share. */
 #stats {
   margin-top: 1rem;

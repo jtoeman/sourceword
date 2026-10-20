@@ -21,6 +21,8 @@ Each daily source word must have 25 to 50 valid words (4+ letters). Check a cand
     python3 tools/check_source.py garden silent
     python3 tools/check_source.py --puzzles    # checks every day in puzzles.json
 
+Step 5 (build 0.3.0-b18): three modes. Easy counts 3-letter words (1 point each). Normal is 4+ letters. Hard is Normal with the countdown, rank, length counts and bonus slots hidden. The mode is set from the header row and is locked once the day has a word.
+
 ## Word list
 
 `words.json` is the checking list: every guess must be in it. It is the intersection of two lists:

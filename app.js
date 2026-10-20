@@ -1,4 +1,4 @@
-// Sourceword, build 0.2.0-b17
+// Sourceword, build 0.3.0-b18
 // Scoring: base by length (Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11), 4-letter minimum.
 // Bonus slots, each worth the points of one word of that length:
 //   - all letters: a valid word using every distinct source letter (one slot per such word)
@@ -8,13 +8,23 @@
 // Goal: "all" counts every valid word. "ten" counts up to 10 words per length; extra words still score.
 // One play per day, saved on-device. Puzzle loaded from puzzles.json by ET date.
 
-const BUILD = "0.2.0-b17";
+const BUILD = "0.3.0-b18";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
-const MIN_LENGTH = 4;
+const MODES = { easy: 3, normal: 4, hard: 4 };
+const MODE_KEY = "sourceword:mode";
 const CORE_CAP = 10;
-// "normal" shows the countdown. "hard" hides it (Hard mode arrives in step 5).
-const MODE = "normal";
+// Preference for the next puzzle. A day's mode is locked by its first word.
+let PREF_MODE = "normal";
+try {
+  const saved = localStorage.getItem(MODE_KEY);
+  if (saved && saved in MODES) PREF_MODE = saved;
+} catch {
+  // Storage blocked: the mode lasts until reload.
+}
+// Active mode for today, set in init. It sets the minimum word length.
+let MODE = PREF_MODE;
+let MIN_LENGTH = MODES[MODE];
 
 // Milestones shown as the player progresses toward the goal (percent of goal found).
 const LADDER = [
@@ -78,6 +88,10 @@ const el = {
   adminToggle: document.getElementById("admin-toggle"),
   goalAll: document.getElementById("goal-all"),
   goalTen: document.getElementById("goal-ten"),
+  modeEasy: document.getElementById("mode-easy"),
+  modeNormal: document.getElementById("mode-normal"),
+  modeHard: document.getElementById("mode-hard"),
+  bonusHead: document.getElementById("bonus-head"),
 };
 
 function setAdmin(on) {
@@ -113,6 +127,39 @@ el.adminToggle.addEventListener("click", () => setAdmin(!ADMIN));
 el.goalAll.addEventListener("click", () => setGoal("all"));
 el.goalTen.addEventListener("click", () => setGoal("ten"));
 syncGoalButtons();
+
+// A day's mode is locked once its first word is in. Before that, a change applies to the next load.
+function modeLocked() {
+  const p = loadPlay(todayET());
+  return Boolean(p.done) || (p.found || []).length > 0;
+}
+
+function syncModeButtons() {
+  el.modeEasy.setAttribute("aria-pressed", MODE === "easy" ? "true" : "false");
+  el.modeNormal.setAttribute("aria-pressed", MODE === "normal" ? "true" : "false");
+  el.modeHard.setAttribute("aria-pressed", MODE === "hard" ? "true" : "false");
+  const locked = modeLocked();
+  for (const b of [el.modeEasy, el.modeNormal, el.modeHard]) {
+    b.disabled = locked;
+    b.title = locked ? "Mode is set by your first word today." : "";
+  }
+}
+
+function setMode(mode) {
+  if (modeLocked() || mode === PREF_MODE) return;
+  PREF_MODE = mode;
+  try {
+    localStorage.setItem(MODE_KEY, mode);
+  } catch {
+    // Storage blocked: the setting lasts until reload.
+  }
+  location.reload(); // The word list and minimum length change with the mode.
+}
+
+el.modeEasy.addEventListener("click", () => setMode("easy"));
+el.modeNormal.addEventListener("click", () => setMode("normal"));
+el.modeHard.addEventListener("click", () => setMode("hard"));
+syncModeButtons();
 
 // Admin: show or hide the full word list in the test view.
 el.reveal.addEventListener("click", () => {
@@ -425,8 +472,9 @@ function gridRows(puzzle, play) {
 
 function shareTextFor(date, play) {
   const ten = play.goalMode === "ten";
+  const modeName = play.mode && play.mode !== "normal" ? ` (${play.mode[0].toUpperCase()}${play.mode.slice(1)})` : "";
   return [
-    `Sourceword ${date}`,
+    `Sourceword ${date}${modeName}`,
     `Score ${play.score}, ${play.rank}`,
     `${play.goalFound} of ${play.goalTotal} ${ten ? "core words" : "words"}`,
     ...(play.grid || []),
@@ -518,7 +566,11 @@ function render(puzzle, play) {
     el.countdown.hidden = true;
     el.lengths.hidden = true;
     el.rank.hidden = true;
+    el.bonuses.hidden = true;
+    el.bonusHead.hidden = true;
   } else {
+    el.bonuses.hidden = false;
+    el.bonusHead.hidden = false;
     const p = progress(puzzle, play);
     el.rank.hidden = false;
     el.rank.textContent = rankFor(p);
@@ -537,6 +589,7 @@ function render(puzzle, play) {
   el.button.disabled = over;
   el.finish.disabled = over;
   renderDebug(puzzle, play);
+  syncModeButtons();
   return result;
 }
 
@@ -558,6 +611,7 @@ function finish(date, puzzle, play) {
 
 function start(date, puzzle) {
   const play = loadPlay(date);
+  if (!play.mode) play.mode = MODE;
   renderSource(puzzle.source, "");
   el.input.addEventListener("input", () => renderSource(puzzle.source, el.input.value));
   render(puzzle, play);
@@ -615,6 +669,12 @@ async function init() {
       el.finish.disabled = true;
       return say(`No puzzle for ${date}.`, true);
     }
+    // Mode for today: the locked one if the day has play, else the preference.
+    const saved = loadPlay(date);
+    const started = saved.done || (saved.found || []).length > 0;
+    MODE = saved.mode || (started ? "normal" : PREF_MODE);
+    MIN_LENGTH = MODES[MODE];
+    syncModeButtons();
     const allWords = await loadWords();
     puzzle.words = validWordsFor(puzzle.source, allWords);
     puzzle.wordSet = new Set(puzzle.words);

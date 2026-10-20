@@ -25,6 +25,14 @@
         </div>
       </div>
       <p class="source"><strong id="source"></strong></p>
+      <div class="mode-row">
+        <span class="mode-label">Mode</span>
+        <div class="goal" role="group" aria-label="Mode">
+          <button type="button" class="seg" id="mode-easy" aria-pressed="false">Easy</button>
+          <button type="button" class="seg" id="mode-normal" aria-pressed="true">Normal</button>
+          <button type="button" class="seg" id="mode-hard" aria-pressed="false">Hard</button>
+        </div>
+      </div>
     </header>
 
     <form id="guess-form" autocomplete="off">
@@ -46,7 +54,7 @@
       </div>
       <p class="lengths" id="lengths"></p>
       <ul id="found" class="chips"></ul>
-      <h2>Bonuses</h2>
+      <h2 id="bonus-head">Bonuses</h2>
       <ul id="bonuses" class="chips"></ul>
     </section>
 
