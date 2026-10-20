@@ -8,6 +8,8 @@ Part of [Froobaloo](https://froobaloo.com).
 
 Step 1 (build 0.1.0-b1): a static page with one hardcoded puzzle, guess checking against a sample list, and length scoring.
 
+Step 4 (build 0.2.0-b17): local stats (played, current and best streak, best score) and a share result. Finished days are saved on the device. The share text lists a square grid per word length.
+
 ## Run locally
 
 Open `index.html` in a browser. No build step.

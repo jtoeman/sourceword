@@ -41,6 +41,12 @@ header .top {
   font-variant-numeric: tabular-nums;
 }
 
+.top-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .build {
   font-size: 0.7rem;
   letter-spacing: 0.04em;
@@ -319,6 +325,70 @@ footer {
 .admin-toggle {
   font-size: 0.75rem;
   padding: 0.3rem 0.6rem;
+}
+
+/* Stats and share. */
+#stats {
+  margin-top: 1rem;
+}
+
+#stats[hidden],
+#share-box[hidden] {
+  display: none;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.stat-grid div {
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+}
+
+.stat-grid dt {
+  font-size: 0.75rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.stat-grid dd {
+  margin: 0.15rem 0 0;
+  font-size: 1.6rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.share {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--fg);
+}
+
+.share-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin: 0.6rem 0 0;
+}
+
+.muted-note {
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 /* Admin test view (#debug). Remove before shipping. */

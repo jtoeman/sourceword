@@ -12,7 +12,10 @@
     <header>
       <div class="top">
         <span id="date" class="date"></span>
-        <span class="build" id="build"></span>
+        <span class="top-right">
+          <button type="button" id="stats-btn" class="secondary admin-toggle">Stats</button>
+          <span class="build" id="build"></span>
+        </span>
       </div>
       <div class="titlebar">
         <h1>Sourceword</h1>
@@ -45,6 +48,24 @@
       <ul id="found" class="chips"></ul>
       <h2>Bonuses</h2>
       <ul id="bonuses" class="chips"></ul>
+    </section>
+
+    <section id="stats" hidden>
+      <h2>Stats</h2>
+      <dl class="stat-grid">
+        <div><dt>Played</dt><dd id="stat-played">0</dd></div>
+        <div><dt>Current streak</dt><dd id="stat-streak">0</dd></div>
+        <div><dt>Best streak</dt><dd id="stat-best">0</dd></div>
+        <div><dt>Best score</dt><dd id="stat-best-score">0</dd></div>
+      </dl>
+      <div id="share-box" hidden>
+        <h2>Today's result</h2>
+        <pre id="share-text" class="share"></pre>
+        <p class="share-actions">
+          <button type="button" id="copy-share" class="secondary">Copy result</button>
+          <span id="share-note" class="muted-note" aria-live="polite"></span>
+        </p>
+      </div>
     </section>
 
     <section id="debug" hidden>

@@ -1,4 +1,4 @@
-// Sourceword, build 0.1.11-b16
+// Sourceword, build 0.2.0-b17
 // Scoring: base by length (Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11), 4-letter minimum.
 // Bonus slots, each worth the points of one word of that length:
 //   - all letters: a valid word using every distinct source letter (one slot per such word)
@@ -8,7 +8,8 @@
 // Goal: "all" counts every valid word. "ten" counts up to 10 words per length; extra words still score.
 // One play per day, saved on-device. Puzzle loaded from puzzles.json by ET date.
 
-const BUILD = "0.1.11-b16";
+const BUILD = "0.2.0-b17";
+const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MIN_LENGTH = 4;
 const CORE_CAP = 10;
@@ -61,6 +62,16 @@ const el = {
   debugWords: document.getElementById("debug-words"),
   countdown: document.getElementById("countdown"),
   rank: document.getElementById("rank"),
+  statsBtn: document.getElementById("stats-btn"),
+  stats: document.getElementById("stats"),
+  statPlayed: document.getElementById("stat-played"),
+  statStreak: document.getElementById("stat-streak"),
+  statBest: document.getElementById("stat-best"),
+  statBestScore: document.getElementById("stat-best-score"),
+  shareBox: document.getElementById("share-box"),
+  shareText: document.getElementById("share-text"),
+  copyShare: document.getElementById("copy-share"),
+  shareNote: document.getElementById("share-note"),
   lengths: document.getElementById("lengths"),
   reveal: document.getElementById("reveal"),
   reset: document.getElementById("reset"),
@@ -351,6 +362,113 @@ function renderDebug(puzzle, play) {
   }
 }
 
+// Stats come from saved days. A day counts as played once it is finished.
+function playedDays() {
+  const days = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(STORE_PREFIX)) continue;
+      const play = JSON.parse(localStorage.getItem(key));
+      if (play && play.done) days.push({ ...play, date: key.slice(STORE_PREFIX.length) });
+    }
+  } catch {
+    // Storage blocked: no history to show.
+  }
+  return days.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// Day number for a YYYY-MM-DD date, so consecutive days differ by exactly 1.
+function dayNumber(date) {
+  const [y, m, d] = date.split("-").map(Number);
+  return Date.UTC(y, m - 1, d) / 86400000;
+}
+
+// Current streak counts back from today, or from yesterday if today is not finished yet.
+function streaks(days, today) {
+  const played = new Set(days.map((d) => dayNumber(d.date)));
+  let best = 0;
+  let run = 0;
+  let prev = null;
+  for (const d of days) {
+    const n = dayNumber(d.date);
+    run = prev !== null && n === prev + 1 ? run + 1 : 1;
+    best = Math.max(best, run);
+    prev = n;
+  }
+  const t = dayNumber(today);
+  const start = played.has(t) ? t : played.has(t - 1) ? t - 1 : null;
+  let current = 0;
+  if (start !== null) for (let n = start; played.has(n); n--) current++;
+  return { current, best };
+}
+
+// One row per length: squares for the goal, filled by words found. Shown in the share text.
+function gridRows(puzzle, play) {
+  const total = {};
+  for (const w of puzzle.words) total[w.length] = (total[w.length] || 0) + 1;
+  const found = {};
+  for (const w of play.found) found[w.length] = (found[w.length] || 0) + 1;
+  const lengths = Object.keys(total).map(Number);
+  const max = lengths.length ? Math.max(...lengths) : 0;
+  const rows = [];
+  for (let n = MIN_LENGTH; n <= max; n++) {
+    const goalN = GOAL === "ten" ? Math.min(CORE_CAP, total[n] || 0) : total[n] || 0;
+    if (goalN === 0) continue;
+    const foundN = Math.min(found[n] || 0, goalN);
+    const squares = Math.min(CORE_CAP, goalN);
+    const filled = Math.round((foundN / goalN) * squares);
+    rows.push(`${n}  ${"■".repeat(filled)}${"□".repeat(squares - filled)}  ${foundN}/${goalN}`);
+  }
+  return rows;
+}
+
+function shareTextFor(date, play) {
+  const ten = play.goalMode === "ten";
+  return [
+    `Sourceword ${date}`,
+    `Score ${play.score}, ${play.rank}`,
+    `${play.goalFound} of ${play.goalTotal} ${ten ? "core words" : "words"}`,
+    ...(play.grid || []),
+    SITE_URL,
+  ].join("\n");
+}
+
+function renderStats(date) {
+  const days = playedDays();
+  const s = streaks(days, date);
+  el.statPlayed.textContent = days.length;
+  el.statStreak.textContent = s.current;
+  el.statBest.textContent = s.best;
+  el.statBestScore.textContent = days.reduce((m, d) => Math.max(m, d.score || 0), 0);
+
+  const today = loadPlay(date);
+  el.shareBox.hidden = !today.done;
+  el.shareNote.textContent = "";
+  if (today.done) el.shareText.textContent = shareTextFor(date, today);
+}
+
+el.statsBtn.addEventListener("click", () => {
+  const opening = el.stats.hidden;
+  el.stats.hidden = !opening;
+  if (opening) renderStats(el.date.textContent);
+});
+
+el.copyShare.addEventListener("click", async () => {
+  const text = el.shareText.textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    el.shareNote.textContent = "Copied.";
+  } catch {
+    const range = document.createRange();
+    range.selectNodeContents(el.shareText);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    el.shareNote.textContent = "Select and copy the text above.";
+  }
+});
+
 function say(text, isBad = false) {
   el.message.textContent = text;
   el.message.classList.toggle("bad", isBad);
@@ -424,9 +542,18 @@ function render(puzzle, play) {
 
 function finish(date, puzzle, play) {
   play.done = true;
+  const p = progress(puzzle, play);
+  play.score = scorePlay(play.found, puzzle).total;
+  play.rank = rankFor(p);
+  play.goalMode = GOAL;
+  play.goalTotal = p.goal;
+  play.goalFound = p.goal - p.remaining;
+  play.grid = gridRows(puzzle, play);
   savePlay(date, play);
-  const result = render(puzzle, play);
-  say(`Done. ${play.found.length} of ${puzzle.words.length} found. Score ${result.total}.`);
+  render(puzzle, play);
+  say(`Done. ${play.found.length} of ${puzzle.words.length} found. Score ${play.score}.`);
+  renderStats(date);
+  el.stats.hidden = false;
 }
 
 function start(date, puzzle) {
