@@ -211,6 +211,24 @@ button.secondary {
   font-variant-numeric: tabular-nums;
 }
 
+.score-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+}
+
+.rank {
+  margin: 0;
+  color: var(--fg);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.rank[hidden] {
+  display: none;
+}
+
 /* Found heading, with words left to its right. */
 .found-head {
   display: flex;

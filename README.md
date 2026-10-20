@@ -12,6 +12,13 @@ Step 1 (build 0.1.0-b1): a static page with one hardcoded puzzle, guess checking
 
 Open `index.html` in a browser. No build step.
 
+## Curator rule: source word band
+
+Each daily source word must have 25 to 50 valid words (4+ letters). Check a candidate before it goes in the sheet:
+
+    python3 tools/check_source.py garden silent
+    python3 tools/check_source.py --puzzles    # checks every day in puzzles.json
+
 ## Word list
 
 `words.json` is the checking list: every guess must be in it. It is the intersection of two lists:

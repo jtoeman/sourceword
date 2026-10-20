@@ -1,4 +1,4 @@
-// Sourceword, build 0.1.10-b15
+// Sourceword, build 0.1.11-b16
 // Scoring: base by length (Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11), 4-letter minimum.
 // Bonus slots, each worth the points of one word of that length:
 //   - all letters: a valid word using every distinct source letter (one slot per such word)
@@ -8,18 +8,27 @@
 // Goal: "all" counts every valid word. "ten" counts up to 10 words per length; extra words still score.
 // One play per day, saved on-device. Puzzle loaded from puzzles.json by ET date.
 
-const BUILD = "0.1.10-b15";
+const BUILD = "0.1.11-b16";
 const STORE_PREFIX = "sourceword:play:";
 const MIN_LENGTH = 4;
 const CORE_CAP = 10;
 // "normal" shows the countdown. "hard" hides it (Hard mode arrives in step 5).
 const MODE = "normal";
 
-// Goal toggle, remembered on this device.
+// Milestones shown as the player progresses toward the goal (percent of goal found).
+const LADDER = [
+  { at: 0, name: "Getting started" },
+  { at: 25, name: "Warming up" },
+  { at: 50, name: "Halfway" },
+  { at: 75, name: "Almost there" },
+  { at: 100, name: "Core complete" },
+];
+
+// Goal toggle, remembered on this device. Default is 10 per length.
 const GOAL_KEY = "sourceword:goal";
-let GOAL = "all";
+let GOAL = "ten";
 try {
-  if (localStorage.getItem(GOAL_KEY) === "ten") GOAL = "ten";
+  if (localStorage.getItem(GOAL_KEY) === "all") GOAL = "all";
 } catch {
   // Storage blocked: the toggle works for this visit.
 }
@@ -51,6 +60,7 @@ const el = {
   debugSummary: document.getElementById("debug-summary"),
   debugWords: document.getElementById("debug-words"),
   countdown: document.getElementById("countdown"),
+  rank: document.getElementById("rank"),
   lengths: document.getElementById("lengths"),
   reveal: document.getElementById("reveal"),
   reset: document.getElementById("reset"),
@@ -255,15 +265,25 @@ function progress(puzzle, play) {
   const cap = (n) => (GOAL === "ten" ? Math.min(CORE_CAP, n) : n);
 
   let remaining = 0;
+  let goal = 0;
   const perLength = [];
   for (let n = MIN_LENGTH; n <= max; n++) {
     const goalN = cap(total[n] || 0);
     const foundN = Math.min(found[n] || 0, goalN);
     const left = goalN - foundN;
     remaining += left;
+    goal += goalN;
     perLength.push(`${n} (${left})`);
   }
-  return { remaining, text: perLength.join(", ") };
+  return { remaining, goal, text: perLength.join(", ") };
+}
+
+// Milestone name for the share of the goal found so far.
+function rankFor(p) {
+  const pct = p.goal > 0 ? ((p.goal - p.remaining) / p.goal) * 100 : 100;
+  let name = LADDER[0].name;
+  for (const step of LADDER) if (pct >= step.at) name = step.name;
+  return name;
 }
 
 // Source word as letter spans. Letters the typed text uses are greyed out.
@@ -379,8 +399,11 @@ function render(puzzle, play) {
   if (MODE === "hard") {
     el.countdown.hidden = true;
     el.lengths.hidden = true;
+    el.rank.hidden = true;
   } else {
     const p = progress(puzzle, play);
+    el.rank.hidden = false;
+    el.rank.textContent = rankFor(p);
     el.countdown.hidden = false;
     if (GOAL === "ten") {
       el.countdown.textContent = p.remaining > 0 ? `${p.remaining} core words left` : "Core complete";
