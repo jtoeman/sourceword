@@ -1,14 +1,14 @@
-// Sourceword, build 0.1.9-b14
+// Sourceword, build 0.1.10-b15
 // Scoring: base by length (Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11), 4-letter minimum.
-// Bonuses each equal one extra word of that length:
-//   - all letters: word uses every distinct letter of the source word
-//   - perfect reuse: word uses every letter the source word has, at full count (an anagram)
-//   - length complete: every word of one length is found
-//   - all words: every word in the list is found (valued at the source word's length)
+// Bonus slots, each worth the points of one word of that length:
+//   - all letters: a valid word using every distinct source letter (one slot per such word)
+//   - perfect reuse: an anagram of the source word (one slot per such word)
+//   - length: every word of one length found ("all" goal) or that length's core found ("ten" goal)
+//   - all words: every word found ("all" goal) or the core complete ("ten" goal), valued at the source length
 // Goal: "all" counts every valid word. "ten" counts up to 10 words per length; extra words still score.
 // One play per day, saved on-device. Puzzle loaded from puzzles.json by ET date.
 
-const BUILD = "0.1.9-b14";
+const BUILD = "0.1.10-b15";
 const STORE_PREFIX = "sourceword:play:";
 const MIN_LENGTH = 4;
 const CORE_CAP = 10;
@@ -53,6 +53,7 @@ const el = {
   countdown: document.getElementById("countdown"),
   lengths: document.getElementById("lengths"),
   reveal: document.getElementById("reveal"),
+  reset: document.getElementById("reset"),
   adminToggle: document.getElementById("admin-toggle"),
   goalAll: document.getElementById("goal-all"),
   goalTen: document.getElementById("goal-ten"),
@@ -96,6 +97,16 @@ syncGoalButtons();
 el.reveal.addEventListener("click", () => {
   el.debugWords.hidden = !el.debugWords.hidden;
   el.reveal.textContent = el.debugWords.hidden ? "Show all words" : "Hide all words";
+});
+
+// Admin: clear today's play on this device and reload.
+el.reset.addEventListener("click", () => {
+  try {
+    localStorage.removeItem(STORE_PREFIX + el.date.textContent);
+  } catch {
+    // Storage blocked: nothing saved to clear.
+  }
+  location.reload();
 });
 
 el.build.textContent = `build ${BUILD}`;
@@ -156,42 +167,79 @@ function pointsForLength(n) {
   return 11;
 }
 
-// Scores a play from the found words alone, so bonuses are always derived, never stored.
-function scorePlay(found, puzzle) {
+// Fills slots whose points match earned bonus points. Both lists are sorted ascending.
+function fillSlots(points, earned) {
+  const pool = earned.slice();
+  return points.map((p) => {
+    const i = pool.indexOf(p);
+    if (i < 0) return false;
+    pool.splice(i, 1);
+    return true;
+  });
+}
+
+// Every bonus slot for this puzzle and goal. Slots show a label and points, never a word.
+function bonusSlots(puzzle, found) {
   const source = puzzle.source;
   const srcCounts = letterCounts(source);
   const srcLetters = Object.keys(srcCounts);
-  const bonuses = [];
+  const ten = GOAL === "ten";
+  const foundSet = new Set(found);
+  const slots = [];
 
-  let base = 0;
-  for (const w of found) {
-    base += pointsForLength(w.length);
+  const isAll = (w) => srcLetters.every((ch) => letterCounts(w)[ch]);
+  const isPerm = (w) =>
+    w.length === source.length && srcLetters.every((ch) => letterCounts(w)[ch] === srcCounts[ch]);
 
-    const counts = letterCounts(w);
-    if (srcLetters.every((ch) => counts[ch])) {
-      bonuses.push({ label: `all letters: ${w}`, points: pointsForLength(w.length) });
-    }
-    if (srcLetters.length === Object.keys(counts).length && srcLetters.every((ch) => counts[ch] === srcCounts[ch])) {
-      bonuses.push({ label: `perfect reuse: ${w}`, points: pointsForLength(w.length) });
-    }
+  // Per-word bonuses: one slot per qualifying word in the puzzle.
+  const perWord = [
+    { kind: "all", label: "all letters", qual: puzzle.words.filter(isAll) },
+    { kind: "perm", label: "perfect reuse", qual: puzzle.words.filter(isPerm) },
+  ];
+  for (const { kind, label, qual } of perWord) {
+    const points = qual.map((w) => pointsForLength(w.length)).sort((a, b) => a - b);
+    const earned = found.filter((w) => qual.includes(w)).map((w) => pointsForLength(w.length));
+    const filled = fillSlots(points, earned.sort((a, b) => a - b));
+    points.forEach((p, i) => slots.push({ id: `${kind}:${i}`, label, points: p, filled: filled[i] }));
   }
 
-  // Length complete: every list word of that length is found.
-  const lengths = [...new Set(puzzle.words.map((w) => w.length))];
+  // Length bonuses: all words of a length ("all") or that length's core ("ten").
+  const total = {};
+  for (const w of puzzle.words) total[w.length] = (total[w.length] || 0) + 1;
+  const foundByLen = {};
+  for (const w of found) foundByLen[w.length] = (foundByLen[w.length] || 0) + 1;
+  const lengths = Object.keys(total).map(Number).sort((a, b) => a - b);
   for (const n of lengths) {
-    const ofLength = puzzle.words.filter((w) => w.length === n);
-    if (ofLength.every((w) => found.includes(w))) {
-      bonuses.push({ label: `all ${n}-letter words`, points: pointsForLength(n) });
-    }
+    const goalN = ten ? Math.min(CORE_CAP, total[n]) : total[n];
+    const label = ten ? `${n}-letter core` : `all ${n}-letter words`;
+    slots.push({
+      id: `len:${n}`,
+      label,
+      points: pointsForLength(n),
+      filled: goalN > 0 && (foundByLen[n] || 0) >= goalN,
+    });
   }
 
-  // Valued at the length of the source word, the entire word.
-  if (puzzle.words.length && found.length === puzzle.words.length) {
-    bonuses.push({ label: "all words", points: pointsForLength(source.length) });
+  // All-words bonus: every word, or the core, valued at the source word's length.
+  if (puzzle.words.length) {
+    const done = ten ? progress(puzzle, { found }).remaining === 0 : found.length === puzzle.words.length;
+    slots.push({
+      id: "all",
+      label: ten ? "core complete" : "all words",
+      points: pointsForLength(source.length),
+      filled: done,
+    });
   }
+  return slots;
+}
 
-  const bonusTotal = bonuses.reduce((sum, b) => sum + b.points, 0);
-  return { base, bonuses, total: base + bonusTotal };
+// Scores a play from the found words alone, so bonuses are always derived, never stored.
+function scorePlay(found, puzzle) {
+  const base = found.reduce((sum, w) => sum + pointsForLength(w.length), 0);
+  const slots = bonusSlots(puzzle, found);
+  const earned = slots.filter((s) => s.filled);
+  const bonusTotal = earned.reduce((sum, s) => sum + s.points, 0);
+  return { base, slots, earned, total: base + bonusTotal };
 }
 
 // Words left toward the goal, and words left by length (MIN_LENGTH up to the longest word).
@@ -318,9 +366,10 @@ function render(puzzle, play) {
   }
 
   el.bonuses.innerHTML = "";
-  for (const b of result.bonuses) {
+  for (const s of result.slots) {
     const li = document.createElement("li");
-    li.textContent = `${b.label} (+${b.points})`;
+    li.textContent = `${s.label} +${s.points}`;
+    if (s.filled) li.className = "filled";
     el.bonuses.appendChild(li);
   }
 
@@ -382,14 +431,14 @@ function start(date, puzzle) {
     if (play.found.includes(word)) return say(`Already found: ${word}.`, true);
     if (!puzzle.wordSet.has(word)) return say(`Not in the word list: ${word}.`, true);
 
-    const before = scorePlay(play.found, puzzle).bonuses.map((b) => b.label);
+    const before = new Set(scorePlay(play.found, puzzle).earned.map((s) => s.id));
     const coreBefore = progress(puzzle, play).remaining;
     play.found.push(word);
     savePlay(date, play);
     const result = render(puzzle, play);
 
-    const earned = result.bonuses.filter((b) => !before.includes(b.label));
-    const bonusText = earned.map((b) => ` ${b.label} +${b.points}.`).join("");
+    const earned = result.earned.filter((s) => !before.has(s.id));
+    const bonusText = earned.map((s) => ` ${s.label} +${s.points}.`).join("");
     const coreText = GOAL === "ten" && coreBefore > 0 && progress(puzzle, play).remaining === 0
       ? " Core complete. Bonus words still count."
       : "";

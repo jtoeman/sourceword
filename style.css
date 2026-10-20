@@ -18,7 +18,6 @@ body {
   background: var(--bg);
   color: var(--fg);
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  padding: 0;
 }
 
 main {
@@ -52,16 +51,23 @@ header .top {
   padding: 0.15rem 0.6rem;
 }
 
+.titlebar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.4rem;
+}
+
 h1 {
-  margin: 0.5rem 0 0.25rem;
+  margin: 0;
   font-size: 2rem;
   font-weight: 800;
   letter-spacing: -0.02em;
-  text-wrap: balance;
 }
 
 h2 {
-  margin: 1.5rem 0 0.5rem;
+  margin: 1rem 0 0.5rem;
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -72,73 +78,6 @@ h2 {
 .source {
   margin: 0;
   color: var(--muted);
-}
-
-.source strong span {
-  transition: opacity 0.15s ease;
-}
-
-.source strong span.used {
-  opacity: 0.22;
-}
-
-.stats {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.25rem 1rem;
-  margin-top: 1rem;
-}
-
-.countdown {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--fg);
-  font-variant-numeric: tabular-nums;
-}
-
-.countdown[hidden] {
-  display: none;
-}
-
-.lengths {
-  margin: 0.2rem 0 0;
-  color: var(--muted);
-  font-size: 0.95rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.lengths[hidden] {
-  display: none;
-}
-
-.goal {
-  display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  margin-top: 1rem;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-}
-
-.goal .seg {
-  background: transparent;
-  color: var(--muted);
-  border-radius: 999px;
-  padding: 0.3rem 0.8rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.goal .seg[aria-pressed="true"] {
-  background: var(--surface);
-  color: var(--fg);
-}
-
-form button {
-  flex: none;
 }
 
 .source strong {
@@ -152,10 +91,43 @@ form button {
   overflow-wrap: anywhere;
 }
 
+.source strong span {
+  transition: opacity 0.15s ease;
+}
+
+.source strong span.used {
+  opacity: 0.22;
+}
+
+/* Goal toggle, beside the title. */
+.goal {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.goal .seg {
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.goal .seg[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--fg);
+}
+
 form {
   display: flex;
   gap: 0.5rem;
-  margin: 1.25rem 0 0.5rem;
+  margin: 0.9rem 0 0.25rem;
 }
 
 input {
@@ -175,6 +147,10 @@ input:focus {
   outline-offset: 1px;
 }
 
+input:disabled {
+  opacity: 0.5;
+}
+
 button {
   font: inherit;
   font-weight: 700;
@@ -185,6 +161,10 @@ button {
   background: var(--accent);
   color: var(--bg);
   cursor: pointer;
+}
+
+form button {
+  flex: none;
 }
 
 button:focus-visible {
@@ -206,33 +186,64 @@ button.secondary {
   padding: 0.4rem 0.8rem;
 }
 
-.actions {
-  margin: 0;
-}
-
-input:disabled {
-  opacity: 0.5;
-}
-
 #message {
-  min-height: 1.5rem;
-  margin: 0.25rem 0 0.5rem;
+  min-height: 1.25rem;
+  margin: 0;
   color: var(--good);
+  font-size: 0.95rem;
 }
 
 #message.bad {
   color: var(--bad);
 }
 
+/* Score: label and number share one size. */
 .score {
-  margin: 0;
+  margin: 0.5rem 0 0;
   color: var(--muted);
+  font-size: 1.5rem;
+  font-weight: 700;
 }
 
 .score strong {
   color: var(--accent);
-  font-size: 1.5rem;
+  font-size: inherit;
   font-variant-numeric: tabular-nums;
+}
+
+/* Found heading, with words left to its right. */
+.found-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.found-head h2 {
+  margin: 0;
+}
+
+.countdown {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown[hidden] {
+  display: none;
+}
+
+.lengths {
+  margin: 0.25rem 0 0.4rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.lengths[hidden] {
+  display: none;
 }
 
 .chips {
@@ -254,10 +265,16 @@ input:disabled {
   font-variant-numeric: tabular-nums;
 }
 
+/* Bonus slots: hollow until earned, then filled orange. */
 #bonuses li {
   background: transparent;
   color: var(--accent);
   border: 1px solid var(--accent);
+}
+
+#bonuses li.filled {
+  background: var(--accent);
+  color: var(--bg);
 }
 
 footer {
@@ -265,6 +282,10 @@ footer {
   padding-top: 1rem;
   border-top: 1px solid var(--line);
   font-size: 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .brand {
@@ -277,19 +298,12 @@ footer {
   color: var(--fg);
 }
 
-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.75rem;
-}
-
 .admin-toggle {
   font-size: 0.75rem;
   padding: 0.3rem 0.6rem;
 }
 
-/* Test view (?debug=1). Remove before shipping. */
+/* Admin test view (#debug). Remove before shipping. */
 #debug {
   margin-top: 2rem;
   padding-top: 1rem;
@@ -305,6 +319,12 @@ footer {
   font-size: 0.85rem;
   line-height: 1.5;
   overflow-wrap: anywhere;
+}
+
+.debug-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 #debug-words h3 {

@@ -14,14 +14,15 @@
         <span id="date" class="date"></span>
         <span class="build" id="build"></span>
       </div>
-      <h1>Sourceword</h1>
+      <div class="titlebar">
+        <h1>Sourceword</h1>
+        <div class="goal" role="group" aria-label="Goal">
+          <button type="button" class="seg" id="goal-all" aria-pressed="true">All words</button>
+          <button type="button" class="seg" id="goal-ten" aria-pressed="false">10 per length</button>
+        </div>
+      </div>
       <p class="source"><strong id="source"></strong></p>
     </header>
-
-    <div class="goal" role="group" aria-label="Goal">
-      <button type="button" class="seg" id="goal-all" aria-pressed="true">All words</button>
-      <button type="button" class="seg" id="goal-ten" aria-pressed="false">10 per length</button>
-    </div>
 
     <form id="guess-form" autocomplete="off">
       <input id="guess" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" autofocus aria-label="Your word" placeholder="Type a word">
@@ -32,12 +33,12 @@
     <p id="message" role="status" aria-live="polite"></p>
 
     <section>
-      <div class="stats">
-        <p class="score">Score <strong id="score">0</strong></p>
+      <p class="score">Score <strong id="score">0</strong></p>
+      <div class="found-head">
+        <h2>Found <span id="count">0</span></h2>
         <p class="countdown" id="countdown"></p>
       </div>
       <p class="lengths" id="lengths"></p>
-      <h2>Found <span id="count">0</span></h2>
       <ul id="found" class="chips"></ul>
       <h2>Bonuses</h2>
       <ul id="bonuses" class="chips"></ul>
@@ -46,7 +47,10 @@
     <section id="debug" hidden>
       <h2>Test view</h2>
       <p id="debug-summary" class="debug-summary"></p>
-      <p><button type="button" id="reveal" class="secondary">Show all words</button></p>
+      <p class="debug-actions">
+        <button type="button" id="reveal" class="secondary">Show all words</button>
+        <button type="button" id="reset" class="secondary">Reset today</button>
+      </p>
       <div id="debug-words"></div>
     </section>
 
