@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b34";
+const BUILD = "0.3.0-b35";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -887,6 +887,15 @@ function render(puzzle, play) {
   return result;
 }
 
+// Hub "played today" mark (kit at /kit/froobaloo.js). A finished day counts, win or lose.
+function markHubPlayed() {
+  try {
+    if (window.Froobaloo) window.Froobaloo.markPlayed("sourceword");
+  } catch (err) {
+    console.warn("Sourceword: hub played mark unavailable.", err);
+  }
+}
+
 function finish(date, puzzle, play) {
   const wasDone = play.done;
   play.done = true;
@@ -899,6 +908,7 @@ function finish(date, puzzle, play) {
   play.grid = gridRows(puzzle, play);
   checkCore(play, puzzle);
   savePlay(date, play);
+  markHubPlayed();
   render(puzzle, play);
   say(`Done. ${play.found.length} of ${puzzle.words.length} found. Score ${play.score}.`);
   renderStats(date);
@@ -995,6 +1005,7 @@ function start(date, puzzle) {
   render(puzzle, play);
 
   if (play.done) {
+    markHubPlayed();
     say("You've already played this puzzle.");
     renderResults(date);
     return;
