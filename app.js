@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b27";
+const BUILD = "0.3.0-b29";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { easy: 3, normal: 4, hard: 4 };
@@ -960,8 +960,14 @@ let howtoStep = 0;
 let howtoWords = null;
 let howtoFound = [];
 
-function tiles(word) {
-  return `<div class="tiles">${[...word].map((c) => `<span class="tile-letter">${c}</span>`).join("")}</div>`;
+// Letter tiles for a word. Letters the typed text uses are greyed out, like the live source word.
+function tiles(word, typed = "") {
+  const avail = letterCounts(typed.toLowerCase().replace(/[^a-z]/g, ""));
+  return `<div class="tiles" id="ex-tiles">${[...word].map((c) => {
+    const used = avail[c] > 0;
+    if (used) avail[c]--;
+    return `<span class="tile-letter${used ? " used" : ""}">${c}</span>`;
+  }).join("")}</div>`;
 }
 
 const HOWTO_BODY = [
@@ -969,6 +975,7 @@ const HOWTO_BODY = [
    ${tiles(HOWTO_SAMPLE)}
    <p class="muted">Today's source word is at the top of the game.</p>`,
   `<p>Each letter can be used only as many times as it appears in the source word.</p>
+   ${tiles(HOWTO_SAMPLE)}
    <p>Try one of these: <strong>dare</strong>, <strong>gear</strong>, or <strong>anger</strong>.</p>
    <form id="ex-form" autocomplete="off">
      <input id="ex-input" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Example word" placeholder="Type a word">
@@ -1007,11 +1014,18 @@ function wireHowtoExample() {
   const input = document.getElementById("ex-input");
   const msg = document.getElementById("ex-msg");
   if (!form) return;
+  // Grey out GARDEN's letters as the user types, same as the source word in the game.
+  input.addEventListener("input", () => {
+    const tilesEl = document.getElementById("ex-tiles");
+    if (tilesEl) tilesEl.outerHTML = tiles(HOWTO_SAMPLE, input.value);
+  });
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const words = await loadHowtoWords();
     const w = input.value.trim().toLowerCase();
     input.value = "";
+    const tilesEl = document.getElementById("ex-tiles");
+    if (tilesEl) tilesEl.outerHTML = tiles(HOWTO_SAMPLE);
     if (!/^[a-z]+$/.test(w)) return (msg.textContent = "Letters only.");
     if (w.length < 4) return (msg.textContent = "Too short. 4 letters minimum.");
     if (!fitsSource(w, HOWTO_SAMPLE)) return (msg.textContent = "Uses a letter GARDEN doesn't have enough of.");

@@ -429,6 +429,10 @@ footer {
   margin: 0.75rem 0;
 }
 
+.tile-letter.used {
+  opacity: 0.22;
+}
+
 .tile-letter {
   display: inline-flex;
   align-items: center;
