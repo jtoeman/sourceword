@@ -343,6 +343,162 @@ footer {
   color: var(--muted);
 }
 
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Result card, shown when the day is finished. */
+#results {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+#results[hidden] {
+  display: none;
+}
+
+#results h2 {
+  margin-top: 0;
+}
+
+.result-score {
+  margin: 0.25rem 0 0;
+  font-size: 2.6rem;
+  font-weight: 800;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.result-score span {
+  margin-left: 0.4rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.result-line {
+  margin: 0.25rem 0 0;
+  font-weight: 600;
+}
+
+/* How to play dialog. */
+.howto {
+  width: min(26rem, calc(100% - 2rem));
+  max-height: 90vh;
+  padding: 1.25rem;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+
+.howto::backdrop {
+  background: rgba(10, 8, 20, 0.7);
+}
+
+.howto-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.howto-head h2 {
+  margin: 0;
+}
+
+.howto p {
+  margin: 0.5rem 0;
+  line-height: 1.5;
+}
+
+.howto .muted {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.75rem 0;
+}
+
+.tile-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.4rem;
+  background: var(--tile);
+  color: var(--tile-ink);
+  border-radius: 8px;
+  font-size: 1.25rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.score-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5rem 0;
+}
+
+.score-table td {
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.score-table td + td {
+  text-align: right;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.ex-msg {
+  min-height: 1.25rem;
+  color: var(--good);
+  font-size: 0.95rem;
+}
+
+.howto-score strong {
+  color: var(--accent);
+}
+
+.howto-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.howto-dots {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.howto-dots .dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--line);
+}
+
+.howto-dots .dot.on {
+  background: var(--accent);
+}
+
+/* Admin view: bonus words sit after the core words, in italics. */
+#debug-words li.bonus {
+  font-style: italic;
+}
+
 /* Stats and share. */
 #stats {
   margin-top: 1rem;
@@ -459,4 +615,81 @@ footer {
   background: var(--accent);
   color: var(--bg);
   font-weight: 600;
+}
+
+/* Result card at the top of the page, with the share button. */
+#results {
+  margin: 0.75rem 0 0;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+}
+
+.result-kicker {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.result-top {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+}
+
+.share-btn {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.85rem 1rem;
+  font-size: 1.05rem;
+}
+
+#results .share {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+}
+
+/* Archive list. */
+.archive-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.archive-list li + li {
+  border-top: 1px solid var(--line);
+}
+
+.archive-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.25rem;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.archive-row:hover,
+.archive-row:focus-visible {
+  background: var(--bg);
+}
+
+.archive-row .arch-word {
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.archive-row .arch-status {
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
 }
