@@ -1,4 +1,4 @@
-// Sourceword, build 0.3.0-b22
+// Sourceword, build 0.3.0-b23
 // Scoring: base by length (Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11), 4-letter minimum.
 // Bonus slots, each worth the points of one word of that length:
 //   - all letters: a valid word using every distinct source letter (one slot per such word)
@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b22";
+const BUILD = "0.3.0-b23";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { easy: 3, normal: 4, hard: 4 };
@@ -614,21 +614,21 @@ function gridRows(puzzle, play) {
   for (let n = MIN_LENGTH; n <= max; n++) {
     const goalN = goalBy[n] || 0;
     if (goalN === 0) continue;
+    // One emoji per core word, capped at CORE_CAP squares per row. Green = found, white = not yet.
     const foundN = Math.min(found[n] || 0, goalN);
     const squares = Math.min(CORE_CAP, goalN);
     const filled = Math.round((foundN / goalN) * squares);
-    rows.push(`${n}  ${"■".repeat(filled)}${"□".repeat(squares - filled)}  ${foundN}/${goalN}`);
+    rows.push("🟩".repeat(filled) + "⬜".repeat(squares - filled));
   }
   return rows;
 }
 
+// Spoiler-free, in the Caseboard share style: a header, one emoji row per word length, the link.
 function shareTextFor(date, play) {
-  const ten = play.goalMode === "ten";
-  const modeName = play.mode && play.mode !== "normal" ? ` (${play.mode[0].toUpperCase()}${play.mode.slice(1)})` : "";
+  const [y, m, d] = date.split("-").map(Number);
+  const modeName = play.mode && play.mode !== "normal" ? ` · ${play.mode[0].toUpperCase()}${play.mode.slice(1)}` : "";
   return [
-    `Sourceword ${date}${modeName}`,
-    `Score ${play.score}, ${play.rank}`,
-    `${play.goalFound} of ${play.goalTotal} ${ten ? "core words" : "words"}`,
+    `Sourceword · ${m}/${d}${modeName} · score ${play.score}`,
     ...(play.grid || []),
     SITE_URL,
   ].join("\n");
