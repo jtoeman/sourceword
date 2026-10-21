@@ -1,4 +1,4 @@
-// Sourceword, build 0.3.0-b26
+// Sourceword, build 0.3.0-b27
 // Scoring: base by length (Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11), 4-letter minimum.
 // Bonus slots, each worth the points of one word of that length:
 //   - all letters: a valid word using every distinct source letter (one slot per such word)
@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b26";
+const BUILD = "0.3.0-b27";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { easy: 3, normal: 4, hard: 4 };
@@ -57,7 +57,7 @@ const ADMIN = /\/admin37\/?$/.test(location.pathname);
 const AMPLITUDE_KEY = "6ae928be8b28b6eb768a79b0fdf1fb3f";
 const AMPLITUDE_URL = "https://api2.amplitude.com/2/httpapi";
 // Where the "Next game" button goes after a finished day.
-const NEXT_GAME = { name: "Froobaloo", url: "https://froobaloo.com/" };
+const NEXT_GAME = { name: "Wordsummit", url: "https://froobaloo.com/wordsummit/" };
 
 function randomId() {
   return window.crypto && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
