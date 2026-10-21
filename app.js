@@ -1,4 +1,4 @@
-// Sourceword, build 0.3.0-b19
+// Sourceword, build 0.3.0-b20
 // Scoring: base by length (Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11), 4-letter minimum.
 // Bonus slots, each worth the points of one word of that length:
 //   - all letters: a valid word using every distinct source letter (one slot per such word)
@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b19";
+const BUILD = "0.3.0-b20";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { easy: 3, normal: 4, hard: 4 };
@@ -635,12 +635,25 @@ function savePlay(date, play) {
   }
 }
 
+// "ten" goal: the first CORE_CAP found of each length (in play order) are core; the rest are bonus words.
+function splitFound(found) {
+  const seen = {};
+  const core = [];
+  const extra = [];
+  for (const w of found) {
+    seen[w.length] = (seen[w.length] || 0) + 1;
+    (GOAL === "ten" && seen[w.length] > CORE_CAP ? extra : core).push(w);
+  }
+  return { core, extra };
+}
+
 function render(puzzle, play) {
   current = { puzzle, play };
   const result = scorePlay(play.found, puzzle);
+  const { core, extra } = splitFound(play.found);
 
   el.found.innerHTML = "";
-  const sorted = play.found.slice().sort((a, b) => a.length - b.length || a.localeCompare(b));
+  const sorted = core.slice().sort((a, b) => a.length - b.length || a.localeCompare(b));
   for (const w of sorted) {
     const li = document.createElement("li");
     li.textContent = `${w} (+${pointsForLength(w.length)})`;
@@ -652,6 +665,13 @@ function render(puzzle, play) {
     const li = document.createElement("li");
     li.textContent = `${s.label} +${s.points}`;
     if (s.filled) li.className = "filled";
+    el.bonuses.appendChild(li);
+  }
+  const extraSorted = extra.slice().sort((a, b) => a.length - b.length || a.localeCompare(b));
+  for (const w of extraSorted) {
+    const li = document.createElement("li");
+    li.className = "filled";
+    li.textContent = `${w} (+${pointsForLength(w.length)})`;
     el.bonuses.appendChild(li);
   }
 
