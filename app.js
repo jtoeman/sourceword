@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b31";
+const BUILD = "0.3.0-b32";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -703,6 +703,21 @@ function say(text, isBad = false) {
   el.message.classList.toggle("bad", isBad);
 }
 
+// A rejection the player may think is wrong: offers a button that logs the word for the word list.
+function sayReportable(text, word, date, source) {
+  say(text, true);
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "secondary report-btn";
+  btn.textContent = "Report this word";
+  btn.addEventListener("click", () => {
+    track("Word Reported", { word, date, source, mode: MODE, goal: GOAL, reason: "not in word list" });
+    btn.disabled = true;
+    btn.textContent = "Reported. Thanks";
+  });
+  el.message.appendChild(btn);
+}
+
 // Saved state for one day's play: { found: [...], done: bool }
 function loadPlay(date) {
   try {
@@ -987,7 +1002,7 @@ function start(date, puzzle) {
     if (!fitsSource(word, puzzle.source)) return say("Uses a letter not in the source word.", true);
     if (play.found.includes(word)) return say(`Already found: ${word}.`, true);
     if (BLOCKED.has(word)) return say("Not accepted.", true);
-    if (!puzzle.wordSet.has(word)) return say(`Not in the word list: ${word}.`, true);
+    if (!puzzle.wordSet.has(word)) return sayReportable(`Not in the word list: ${word}.`, word, date, puzzle.source);
 
     const before = new Set(scorePlay(play.found, puzzle).earned.map((s) => s.id));
     play.found.push(word);
