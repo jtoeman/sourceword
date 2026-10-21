@@ -35,6 +35,8 @@ Each daily source word must have 15 to 50 valid words (4+ letters). Check a cand
 
 Step 8 (build 0.3.0-b21): obscure words (not common English, see common.json) are allowed and always bonus. Core is the day's curated list from the sheet's Core column (column H, comma-separated) if it has one, otherwise the first 10 common words per length. blocked.json lists words that are never accepted or counted. A blocked guess gets "Not accepted."
 
+Step 11 (build 0.3.0-b24): result card moves to the top, with a Share button. Archive lists past sheet days (?day=YYYY-MM-DD opens one). How to play shows on a browser's first visit.
+
 Step 10 (build 0.3.0-b23): share text is spoiler-free and in the Caseboard style: a header with date and score, one emoji row per word length (green found, white not yet), and the link.
 
 Step 9 (build 0.3.0-b22): How to play walkthrough (opens on first visit, footer button reopens it). A result card appears when the day is finished, with score, milestone and a copyable share text. Admin view lists bonus words after core, in italics.

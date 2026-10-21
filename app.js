@@ -1,4 +1,4 @@
-// Sourceword, build 0.3.0-b23
+// Sourceword, build 0.3.0-b24
 // Scoring: base by length (Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11), 4-letter minimum.
 // Bonus slots, each worth the points of one word of that length:
 //   - all letters: a valid word using every distinct source letter (one slot per such word)
@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b23";
+const BUILD = "0.3.0-b24";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { easy: 3, normal: 4, hard: 4 };
@@ -96,7 +96,11 @@ const el = {
   howtoDots: document.getElementById("howto-dots"),
   howtoClose: document.getElementById("howto-close"),
   shareText: document.getElementById("share-text"),
-  copyShare: document.getElementById("copy-share"),
+  shareBtn: document.getElementById("share-btn"),
+  archiveBtn: document.getElementById("archive-btn"),
+  archive: document.getElementById("archive"),
+  archiveList: document.getElementById("archive-list"),
+  archiveClose: document.getElementById("archive-close"),
   shareNote: document.getElementById("share-note"),
   lengths: document.getElementById("lengths"),
   reveal: document.getElementById("reveal"),
@@ -186,7 +190,7 @@ el.reveal.addEventListener("click", () => {
 // Admin: clear today's play on this device and reload.
 el.reset.addEventListener("click", () => {
   try {
-    localStorage.removeItem(STORE_PREFIX + el.date.textContent);
+    localStorage.removeItem(STORE_PREFIX + currentDay());
   } catch {
     // Storage blocked: nothing saved to clear.
   }
@@ -662,24 +666,29 @@ function renderResults(date) {
 el.statsBtn.addEventListener("click", () => {
   const opening = el.stats.hidden;
   el.stats.hidden = !opening;
-  if (opening) renderStats(el.date.textContent);
+  if (opening) renderStats(currentDay());
 });
 
-el.copyShare.addEventListener("click", async () => {
+// The day on screen (today, or an archive day), kept off the visible label.
+function currentDay() {
+  return el.date.dataset.day;
+}
+
+// Copies the spoiler-free result. Falls back to selecting the text where clipboard access is blocked.
+el.shareBtn.addEventListener("click", async () => {
   const text = el.shareText.textContent;
   try {
     await navigator.clipboard.writeText(text);
-    el.shareNote.textContent = "Copied.";
+    el.shareNote.textContent = "Copied. Paste it anywhere.";
   } catch {
     const range = document.createRange();
     range.selectNodeContents(el.shareText);
     const sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(range);
-    el.shareNote.textContent = "Select and copy the text above.";
+    el.shareNote.textContent = "Select and copy the text below.";
   }
 });
-
 function say(text, isBad = false) {
   el.message.textContent = text;
   el.message.classList.toggle("bad", isBad);
@@ -853,7 +862,7 @@ function start(date, puzzle) {
   render(puzzle, play);
 
   if (play.done) {
-    say("You've played today's puzzle. Come back tomorrow.");
+    say("You've already played this puzzle.");
     renderResults(date);
     return;
   }
@@ -982,15 +991,66 @@ function openHowto() {
   }
 }
 
+// Shown on a browser's first visit. If storage is blocked, the flag can't be kept, so it shows on each load.
 function showHowtoOnFirstVisit() {
-  let seen = true;
+  let seen = false;
   try {
     seen = localStorage.getItem(HOWTO_KEY) === "1";
   } catch {
-    // Storage blocked: treat as seen so the walkthrough does not pop up on every load.
+    // Storage blocked: not seen, so the walkthrough shows.
   }
   if (!seen) openHowto();
 }
+
+// Archive: past puzzles from the sheet. Each opens with ?day=YYYY-MM-DD.
+let ARCHIVE = [];
+
+function shortDate(date) {
+  const [, m, d] = date.split("-").map(Number);
+  return `${m}/${d}`;
+}
+
+function openDialog(d) {
+  if (typeof d.showModal === "function") d.showModal();
+  else d.setAttribute("open", "");
+}
+
+function renderArchive() {
+  el.archiveList.innerHTML = "";
+  if (!ARCHIVE.length) {
+    const li = document.createElement("li");
+    li.className = "muted";
+    li.textContent = "No past puzzles yet.";
+    el.archiveList.appendChild(li);
+    return;
+  }
+  for (const { date, source } of ARCHIVE) {
+    const play = loadPlay(date);
+    const status = play.done ? `Score ${play.score}` : (play.found || []).length ? "In progress" : "Not played";
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.className = "archive-row";
+    a.href = `${location.pathname}?day=${date}`;
+    const left = document.createElement("span");
+    left.textContent = `${shortDate(date)} `;
+    const word = document.createElement("span");
+    word.className = "arch-word";
+    word.textContent = source;
+    left.appendChild(word);
+    const right = document.createElement("span");
+    right.className = "arch-status";
+    right.textContent = status;
+    a.append(left, right);
+    li.appendChild(a);
+    el.archiveList.appendChild(li);
+  }
+}
+
+el.archiveBtn.addEventListener("click", () => {
+  renderArchive();
+  openDialog(el.archive);
+});
+el.archiveClose.addEventListener("click", () => el.archive.close());
 
 el.howtoBtn.addEventListener("click", openHowto);
 el.howtoClose.addEventListener("click", () => el.howto.close());
@@ -1007,6 +1067,7 @@ el.howtoNext.addEventListener("click", () => {
 async function init() {
   const today = todayET();
   document.title = `Sourceword (${BUILD})`;
+  el.date.dataset.day = today;
   el.date.textContent = today;
   try {
     const [rawWords, common, blocked] = await Promise.all([loadWords(), loadCommon(), loadBlocked()]);
@@ -1020,7 +1081,14 @@ async function init() {
       if (n >= BAND_LOW && n <= BAND_HIGH) valid[date] = e;
       else console.warn(`Sourceword: ${date} (${e.source}) has ${n} valid words, outside ${BAND_LOW} to ${BAND_HIGH}; skipped.`);
     }
-    const date = pickDate(valid, today);
+    // ?day=YYYY-MM-DD opens an archive day, if it is a valid past day.
+    const requested = new URLSearchParams(location.search).get("day");
+    const date = requested && valid[requested] && requested <= today ? requested : pickDate(valid, today);
+    ARCHIVE = Object.keys(valid)
+      .filter((d) => d < today)
+      .sort()
+      .reverse()
+      .map((d) => ({ date: d, source: valid[d].source }));
     if (!date) {
       el.source.textContent = "none";
       el.input.disabled = true;
@@ -1028,7 +1096,8 @@ async function init() {
       el.finish.disabled = true;
       return say(`No puzzle for ${today}.`, true);
     }
-    el.date.textContent = date;
+    el.date.dataset.day = date;
+    el.date.textContent = date === today ? today : `${date} · archive`;
     const puzzle = { source: valid[date].source, core: valid[date].core || [], common: COMMON };
     // Mode for the day: the locked one if the day has play, else the preference.
     const saved = loadPlay(date);
