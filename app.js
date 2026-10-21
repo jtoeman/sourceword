@@ -1,4 +1,4 @@
-// Sourceword, build 0.3.0-b21
+// Sourceword, build 0.3.0-b22
 // Scoring: base by length (Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11), 4-letter minimum.
 // Bonus slots, each worth the points of one word of that length:
 //   - all letters: a valid word using every distinct source letter (one slot per such word)
@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b21";
+const BUILD = "0.3.0-b22";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { easy: 3, normal: 4, hard: 4 };
@@ -84,7 +84,17 @@ const el = {
   statStreak: document.getElementById("stat-streak"),
   statBest: document.getElementById("stat-best"),
   statBestScore: document.getElementById("stat-best-score"),
-  shareBox: document.getElementById("share-box"),
+  results: document.getElementById("results"),
+  resScore: document.getElementById("res-score"),
+  resRank: document.getElementById("res-rank"),
+  resCore: document.getElementById("res-core"),
+  howtoBtn: document.getElementById("howto-btn"),
+  howto: document.getElementById("howto"),
+  howtoBody: document.getElementById("howto-body"),
+  howtoBack: document.getElementById("howto-back"),
+  howtoNext: document.getElementById("howto-next"),
+  howtoDots: document.getElementById("howto-dots"),
+  howtoClose: document.getElementById("howto-close"),
   shareText: document.getElementById("share-text"),
   copyShare: document.getElementById("copy-share"),
   shareNote: document.getElementById("share-note"),
@@ -511,7 +521,8 @@ function renderDebug(puzzle, play) {
   el.debugSummary.textContent =
     `Build ${BUILD}. Source "${puzzle.source}" (letters: ${letters}). ` +
     `${puzzle.words.length} valid words, ${found.size} found. Minimum length ${MIN_LENGTH}. Goal: ${GOAL === "ten" ? "10 per length" : "all words"}. ` +
-    `Bonus: all letters, perfect reuse (each source letter used at full count), every word of a length, all words (worth ${pointsForLength(puzzle.source.length)}).`;
+    `Bonus: all letters, perfect reuse (each source letter used at full count), every word of a length, all words (worth ${pointsForLength(puzzle.source.length)}). ` +
+    (GOAL === "ten" ? " Core words are listed first. Bonus words are in italics." : "");
 
   const byLength = {};
   for (const w of puzzle.words) {
@@ -528,11 +539,22 @@ function renderDebug(puzzle, play) {
     h.textContent = `${n} letters: ${got} of ${words.length} found, ${pointsForLength(n)} pt each`;
     el.debugWords.appendChild(h);
 
+    // Core follows the game's rule: the day's curated list, or the first CORE_CAP common words of each length.
+    // Core words are listed first; bonus words follow, in italics.
+    let core = words;
+    if (GOAL === "ten") {
+      core = puzzle.curated
+        ? words.filter((w) => puzzle.curated.has(w))
+        : words.filter((w) => isCommon(w, puzzle)).slice(0, CORE_CAP);
+    }
+    const coreSet = new Set(core);
+    const ordered = [...core, ...words.filter((w) => !coreSet.has(w))];
     const ul = document.createElement("ul");
-    for (const w of words) {
+    for (const w of ordered) {
       const li = document.createElement("li");
       li.textContent = w;
-      if (found.has(w)) li.className = "got";
+      if (found.has(w)) li.classList.add("got");
+      if (!coreSet.has(w)) li.classList.add("bonus");
       ul.appendChild(li);
     }
     el.debugWords.appendChild(ul);
@@ -620,10 +642,21 @@ function renderStats(date) {
   el.statBest.textContent = s.best;
   el.statBestScore.textContent = days.reduce((m, d) => Math.max(m, d.score || 0), 0);
 
-  const today = loadPlay(date);
-  el.shareBox.hidden = !today.done;
+}
+
+// The result card: score, milestone and the copyable share text. Shown once the day is finished.
+function renderResults(date) {
+  const play = loadPlay(date);
+  if (!play.done) {
+    el.results.hidden = true;
+    return;
+  }
+  el.results.hidden = false;
+  el.resScore.textContent = play.score;
+  el.resRank.textContent = play.rank;
+  el.resCore.textContent = `${play.goalFound} of ${play.goalTotal} ${play.goalMode === "ten" ? "core words" : "words"} found`;
+  el.shareText.textContent = shareTextFor(date, play);
   el.shareNote.textContent = "";
-  if (today.done) el.shareText.textContent = shareTextFor(date, today);
 }
 
 el.statsBtn.addEventListener("click", () => {
@@ -808,7 +841,8 @@ function finish(date, puzzle, play) {
   render(puzzle, play);
   say(`Done. ${play.found.length} of ${puzzle.words.length} found. Score ${play.score}.`);
   renderStats(date);
-  el.stats.hidden = false;
+  renderResults(date);
+  el.results.scrollIntoView?.({ behavior: "smooth", block: "start" });
 }
 
 function start(date, puzzle) {
@@ -820,6 +854,7 @@ function start(date, puzzle) {
 
   if (play.done) {
     say("You've played today's puzzle. Come back tomorrow.");
+    renderResults(date);
     return;
   }
   if (play.found.length === puzzle.words.length) return finish(date, puzzle, play);
@@ -857,6 +892,117 @@ function start(date, puzzle) {
   el.finish.addEventListener("click", () => finish(date, puzzle, play));
   el.input.focus();
 }
+
+// How to play: a short walkthrough. Opens on first visit and from the footer button.
+const HOWTO_KEY = "sourceword:howto-seen";
+const HOWTO_SAMPLE = "garden";
+let howtoStep = 0;
+let howtoWords = null;
+let howtoFound = [];
+
+function tiles(word) {
+  return `<div class="tiles">${[...word].map((c) => `<span class="tile-letter">${c}</span>`).join("")}</div>`;
+}
+
+const HOWTO_BODY = [
+  `<p>Each day has one <strong>source word</strong>. Build as many words as you can from its letters.</p>
+   ${tiles(HOWTO_SAMPLE)}
+   <p class="muted">Today's source word is at the top of the game.</p>`,
+  `<p>Each letter can be used only as many times as it appears in the source word.</p>
+   <p>Try one of these: <strong>dare</strong>, <strong>gear</strong>, or <strong>anger</strong>.</p>
+   <form id="ex-form" autocomplete="off">
+     <input id="ex-input" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Example word" placeholder="Type a word">
+     <button type="submit">Enter</button>
+   </form>
+   <p id="ex-msg" class="ex-msg" role="status"></p>`,
+  `<p>Words score by length:</p>
+   <table class="score-table">
+     <tr><td>4 letters</td><td>1 point</td></tr>
+     <tr><td>5 letters</td><td>2 points</td></tr>
+     <tr><td>6 letters</td><td>3 points</td></tr>
+     <tr><td>7 letters</td><td>5 points</td></tr>
+     <tr><td>8+ letters</td><td>11 points</td></tr>
+   </table>
+   <p class="muted">Easy mode also counts 3-letter words, at 1 point each.</p>`,
+  `<p><strong>10 per length</strong> is the default goal. Core words are the day's curated list, or the first 10 common words of each length. Other words still score as bonus.</p>
+   <p><strong>All words</strong> counts every word in the puzzle.</p>
+   <p>Bonus slots fill when you find every letter of the source word, a perfect reuse of its letter counts, every word of a length, or all words.</p>
+   <p class="muted">Hard mode hides the counts and the bonus slots.</p>`,
+  `<p>The day ends when you find every word, or when you tap <strong>I'm done</strong>.</p>
+   <p>You'll see your score and a result card you can copy to share.</p>
+   <p class="howto-score">A sample score: <strong>37</strong></p>`,
+];
+
+async function loadHowtoWords() {
+  if (!howtoWords) {
+    const all = await loadWords();
+    howtoWords = new Set(all.filter((w) => w.length >= 4 && w !== HOWTO_SAMPLE && fitsSource(w, HOWTO_SAMPLE)));
+  }
+  return howtoWords;
+}
+
+// The live example on step 2: checks against the sample word only.
+function wireHowtoExample() {
+  const form = document.getElementById("ex-form");
+  const input = document.getElementById("ex-input");
+  const msg = document.getElementById("ex-msg");
+  if (!form) return;
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const words = await loadHowtoWords();
+    const w = input.value.trim().toLowerCase();
+    input.value = "";
+    if (!/^[a-z]+$/.test(w)) return (msg.textContent = "Letters only.");
+    if (w.length < 4) return (msg.textContent = "Too short. 4 letters minimum.");
+    if (!fitsSource(w, HOWTO_SAMPLE)) return (msg.textContent = "Uses a letter GARDEN doesn't have enough of.");
+    if (howtoFound.includes(w)) return (msg.textContent = `Already found: ${w}.`);
+    if (!words.has(w)) return (msg.textContent = `Not in the word list: ${w}.`);
+    howtoFound.push(w);
+    msg.textContent = `${w}: +${pointsForLength(w.length)}. Nice.`;
+  });
+}
+
+function renderHowtoStep() {
+  el.howtoBody.innerHTML = HOWTO_BODY[howtoStep];
+  el.howtoBack.disabled = howtoStep === 0;
+  el.howtoNext.textContent = howtoStep === HOWTO_BODY.length - 1 ? "Start playing" : "Next";
+  el.howtoDots.innerHTML = HOWTO_BODY.map((_, i) => `<span class="dot${i === howtoStep ? " on" : ""}"></span>`).join("");
+  if (howtoStep === 1) wireHowtoExample();
+}
+
+function openHowto() {
+  howtoStep = 0;
+  renderHowtoStep();
+  if (typeof el.howto.showModal === "function") el.howto.showModal();
+  else el.howto.setAttribute("open", "");
+  try {
+    localStorage.setItem(HOWTO_KEY, "1");
+  } catch {
+    // Storage blocked: the walkthrough may show again on the next visit.
+  }
+}
+
+function showHowtoOnFirstVisit() {
+  let seen = true;
+  try {
+    seen = localStorage.getItem(HOWTO_KEY) === "1";
+  } catch {
+    // Storage blocked: treat as seen so the walkthrough does not pop up on every load.
+  }
+  if (!seen) openHowto();
+}
+
+el.howtoBtn.addEventListener("click", openHowto);
+el.howtoClose.addEventListener("click", () => el.howto.close());
+el.howtoBack.addEventListener("click", () => {
+  howtoStep = Math.max(0, howtoStep - 1);
+  renderHowtoStep();
+});
+el.howtoNext.addEventListener("click", () => {
+  if (howtoStep === HOWTO_BODY.length - 1) return el.howto.close();
+  howtoStep += 1;
+  renderHowtoStep();
+});
 
 async function init() {
   const today = todayET();
@@ -897,6 +1043,7 @@ async function init() {
     if (dropped.length) console.warn(`Sourceword: curated core words not valid for ${date}: ${dropped.join(", ")}`);
     puzzle.curated = curated.size ? curated : null;
     start(date, puzzle);
+    showHowtoOnFirstVisit();
   } catch (err) {
     say("Couldn't load today's puzzle.", true);
     console.error(err);

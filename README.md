@@ -35,6 +35,8 @@ Each daily source word must have 15 to 50 valid words (4+ letters). Check a cand
 
 Step 8 (build 0.3.0-b21): obscure words (not common English, see common.json) are allowed and always bonus. Core is the day's curated list from the sheet's Core column (column H, comma-separated) if it has one, otherwise the first 10 common words per length. blocked.json lists words that are never accepted or counted. A blocked guess gets "Not accepted."
 
+Step 9 (build 0.3.0-b22): How to play walkthrough (opens on first visit, footer button reopens it). A result card appears when the day is finished, with score, milestone and a copyable share text. Admin view lists bonus words after core, in italics.
+
 Step 7 (build 0.3.0-b20): in the "ten" goal, the first 10 found words of each length are core and listed as found. Extra words still score 1 point each and are listed in the bonus region.
 
 Step 6 (build 0.3.0-b19): daily words are read from the Google Sheet in the browser, with puzzles.json as the fallback.

@@ -67,6 +67,18 @@
       <ul id="bonuses" class="chips"></ul>
     </section>
 
+    <section id="results" hidden>
+      <h2>Today's result</h2>
+      <p class="result-score"><strong id="res-score">0</strong><span>points</span></p>
+      <p class="result-line" id="res-rank"></p>
+      <p class="result-line" id="res-core"></p>
+      <pre id="share-text" class="share"></pre>
+      <p class="share-actions">
+        <button type="button" id="copy-share" class="secondary">Copy result</button>
+        <span id="share-note" class="muted-note" aria-live="polite"></span>
+      </p>
+    </section>
+
     <section id="stats" hidden>
       <h2>Stats</h2>
       <dl class="stat-grid">
@@ -75,14 +87,6 @@
         <div><dt>Best streak</dt><dd id="stat-best">0</dd></div>
         <div><dt>Best score</dt><dd id="stat-best-score">0</dd></div>
       </dl>
-      <div id="share-box" hidden>
-        <h2>Today's result</h2>
-        <pre id="share-text" class="share"></pre>
-        <p class="share-actions">
-          <button type="button" id="copy-share" class="secondary">Copy result</button>
-          <span id="share-note" class="muted-note" aria-live="polite"></span>
-        </p>
-      </div>
     </section>
 
     <section id="debug" hidden>
@@ -95,9 +99,25 @@
       <div id="debug-words"></div>
     </section>
 
+    <dialog id="howto" class="howto" aria-labelledby="howto-title">
+      <div class="howto-head">
+        <h2 id="howto-title">How to play</h2>
+        <button type="button" id="howto-close" class="secondary">Close</button>
+      </div>
+      <div id="howto-body"></div>
+      <div class="howto-nav">
+        <button type="button" id="howto-back" class="secondary">Back</button>
+        <span id="howto-dots" class="howto-dots" aria-hidden="true"></span>
+        <button type="button" id="howto-next">Next</button>
+      </div>
+    </dialog>
+
     <footer>
       <a class="brand" href="https://froobaloo.com/">froobaloo</a>
-      <button type="button" id="admin-toggle" class="secondary admin-toggle">Admin: off</button>
+      <span class="footer-right">
+        <button type="button" id="howto-btn" class="secondary admin-toggle">How to play</button>
+        <button type="button" id="admin-toggle" class="secondary admin-toggle">Admin: off</button>
+      </span>
     </footer>
   </main>
   <script src="app.js"></script>
