@@ -1,4 +1,4 @@
-// Sourceword, build 0.3.0-b20
+// Sourceword, build 0.3.0-b21
 // Scoring: base by length (Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11), 4-letter minimum.
 // Bonus slots, each worth the points of one word of that length:
 //   - all letters: a valid word using every distinct source letter (one slot per such word)
@@ -11,12 +11,15 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b20";
+const BUILD = "0.3.0-b21";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { easy: 3, normal: 4, hard: 4 };
 const MODE_KEY = "sourceword:mode";
 const CORE_CAP = 10;
+const CORE_COLUMN = 7; // sheet column H: optional curated core words for the day, comma-separated
+let BLOCKED = new Set(); // blocked.json: never accepted, never counted
+let COMMON = null; // common.json: words at Zipf 3.0+. Null means every word counts as common.
 // Preference for the next puzzle. A day's mode is locked by its first word.
 let PREF_MODE = "normal";
 try {
@@ -243,6 +246,11 @@ function isoDate(raw) {
   return null;
 }
 
+// "word, word, word" -> ["word", "word", "word"], lowercase letters only.
+function parseCore(raw) {
+  return (raw || "").split(/[,\s]+/).map((w) => w.trim().toLowerCase()).filter((w) => /^[a-z]+$/.test(w));
+}
+
 // Sheet columns by position: Date, Source Word, Valid Words, Status, Notes, Subwords, Band.
 // Rows are skipped if the date or word is unusable, or the status is "draft".
 async function loadSheetEntries() {
@@ -256,7 +264,7 @@ async function loadSheetEntries() {
     const source = (r[1] || "").trim().toLowerCase();
     const status = (r[3] || "").trim().toLowerCase();
     if (!date || !/^[a-z]+$/.test(source) || status === "draft") continue;
-    if (!out[date]) out[date] = { source };
+    if (!out[date]) out[date] = { source, core: parseCore(r[CORE_COLUMN]) };
   }
   if (!Object.keys(out).length) throw new Error("sheet: no usable rows");
   return out;
@@ -268,7 +276,10 @@ async function loadFallbackEntries() {
   const out = {};
   for (const [date, p] of Object.entries(data)) {
     const source = String(p.source || "").trim().toLowerCase();
-    if (/^[a-z]+$/.test(source)) out[date] = { source };
+    if (/^[a-z]+$/.test(source)) {
+      const core = Array.isArray(p.core) ? p.core.map((w) => String(w).toLowerCase()) : [];
+      out[date] = { source, core };
+    }
   }
   return out;
 }
@@ -300,6 +311,30 @@ async function loadWords() {
   const res = await fetch("words.json", { cache: "force-cache" });
   if (!res.ok) throw new Error(`words.json: HTTP ${res.status}`);
   return res.json();
+}
+
+// Common words (Zipf 3.0+), built by tools/build_common.py. If it can't load, every word counts as common.
+async function loadCommon() {
+  try {
+    const res = await fetch("common.json", { cache: "force-cache" });
+    if (!res.ok) throw new Error(`common.json: HTTP ${res.status}`);
+    return new Set(await res.json());
+  } catch (err) {
+    console.warn("Sourceword: common list unavailable; every word counts as common.", err);
+    return null;
+  }
+}
+
+// Blocked words (blocked.json). If it can't load, the game still runs with no blocked words.
+async function loadBlocked() {
+  try {
+    const res = await fetch("blocked.json", { cache: "force-cache" });
+    if (!res.ok) throw new Error(`blocked.json: HTTP ${res.status}`);
+    return new Set((await res.json()).map((w) => String(w).toLowerCase()));
+  } catch (err) {
+    console.warn("Sourceword: blocked list unavailable.", err);
+    return new Set();
+  }
 }
 
 // The day's valid words: checking-list words that fit the source, at the minimum length.
@@ -368,13 +403,12 @@ function bonusSlots(puzzle, found) {
   }
 
   // Length bonuses: all words of a length ("all") or that length's core ("ten").
-  const total = {};
-  for (const w of puzzle.words) total[w.length] = (total[w.length] || 0) + 1;
-  const foundByLen = {};
-  for (const w of found) foundByLen[w.length] = (foundByLen[w.length] || 0) + 1;
+  const total = countByLength(puzzle.words);
+  const goalBy = ten ? coreGoal(puzzle) : total;
+  const foundByLen = countByLength(ten ? splitFound(found, puzzle).core : found);
   const lengths = Object.keys(total).map(Number).sort((a, b) => a - b);
   for (const n of lengths) {
-    const goalN = ten ? Math.min(CORE_CAP, total[n]) : total[n];
+    const goalN = goalBy[n] || 0;
     const label = ten ? `${n}-letter core` : `all ${n}-letter words`;
     slots.push({
       id: `len:${n}`,
@@ -548,15 +582,15 @@ function streaks(days, today) {
 
 // One row per length: squares for the goal, filled by words found. Shown in the share text.
 function gridRows(puzzle, play) {
-  const total = {};
-  for (const w of puzzle.words) total[w.length] = (total[w.length] || 0) + 1;
-  const found = {};
-  for (const w of play.found) found[w.length] = (found[w.length] || 0) + 1;
+  const total = countByLength(puzzle.words);
+  const ten = GOAL === "ten";
+  const goalBy = ten ? coreGoal(puzzle) : total;
+  const found = countByLength(ten ? splitFound(play.found, puzzle).core : play.found);
   const lengths = Object.keys(total).map(Number);
   const max = lengths.length ? Math.max(...lengths) : 0;
   const rows = [];
   for (let n = MIN_LENGTH; n <= max; n++) {
-    const goalN = GOAL === "ten" ? Math.min(CORE_CAP, total[n] || 0) : total[n] || 0;
+    const goalN = goalBy[n] || 0;
     if (goalN === 0) continue;
     const foundN = Math.min(found[n] || 0, goalN);
     const squares = Math.min(CORE_CAP, goalN);
@@ -635,22 +669,74 @@ function savePlay(date, play) {
   }
 }
 
-// "ten" goal: the first CORE_CAP found of each length (in play order) are core; the rest are bonus words.
-function splitFound(found) {
-  const seen = {};
+// Core and bonus words for the "ten" goal. Core is the day's curated list if it has one, otherwise
+// the first CORE_CAP common words of each length in play order. Obscure words are always bonus.
+function isCommon(w, puzzle) {
+  return !puzzle.common || puzzle.common.has(w);
+}
+
+function countByLength(words) {
+  const out = {};
+  for (const w of words) out[w.length] = (out[w.length] || 0) + 1;
+  return out;
+}
+
+function splitFound(found, puzzle) {
+  if (GOAL !== "ten") return { core: found.slice(), extra: [] };
   const core = [];
   const extra = [];
+  const seen = {};
   for (const w of found) {
-    seen[w.length] = (seen[w.length] || 0) + 1;
-    (GOAL === "ten" && seen[w.length] > CORE_CAP ? extra : core).push(w);
+    if (puzzle.curated) {
+      (puzzle.curated.has(w) ? core : extra).push(w);
+    } else if (isCommon(w, puzzle)) {
+      seen[w.length] = (seen[w.length] || 0) + 1;
+      (seen[w.length] <= CORE_CAP ? core : extra).push(w);
+    } else {
+      extra.push(w);
+    }
   }
   return { core, extra };
+}
+
+// Core words per length for the "ten" goal.
+function coreGoal(puzzle) {
+  const goal = {};
+  for (const w of puzzle.words) {
+    const isCore = puzzle.curated ? puzzle.curated.has(w) : isCommon(w, puzzle);
+    if (isCore) goal[w.length] = (goal[w.length] || 0) + 1;
+  }
+  if (!puzzle.curated) for (const n of Object.keys(goal)) goal[n] = Math.min(CORE_CAP, goal[n]);
+  return goal;
+}
+
+// Words left toward the goal, and words left by length (MIN_LENGTH up to the longest word).
+function progress(puzzle, play) {
+  const total = countByLength(puzzle.words);
+  const ten = GOAL === "ten";
+  const goalBy = ten ? coreGoal(puzzle) : total;
+  const found = countByLength(ten ? splitFound(play.found, puzzle).core : play.found);
+
+  const lengths = Object.keys(total).map(Number);
+  const max = lengths.length ? Math.max(...lengths) : 0;
+  let remaining = 0;
+  let goal = 0;
+  const perLength = [];
+  for (let n = MIN_LENGTH; n <= max; n++) {
+    const goalN = goalBy[n] || 0;
+    const foundN = Math.min(found[n] || 0, goalN);
+    const left = goalN - foundN;
+    remaining += left;
+    goal += goalN;
+    perLength.push(`${n} (${left})`);
+  }
+  return { remaining, goal, text: perLength.join(", ") };
 }
 
 function render(puzzle, play) {
   current = { puzzle, play };
   const result = scorePlay(play.found, puzzle);
-  const { core, extra } = splitFound(play.found);
+  const { core, extra } = splitFound(play.found, puzzle);
 
   el.found.innerHTML = "";
   const sorted = core.slice().sort((a, b) => a.length - b.length || a.localeCompare(b));
@@ -749,6 +835,7 @@ function start(date, puzzle) {
     if (word === puzzle.source) return say("That's the source word.", true);
     if (!fitsSource(word, puzzle.source)) return say("Uses a letter not in the source word.", true);
     if (play.found.includes(word)) return say(`Already found: ${word}.`, true);
+    if (BLOCKED.has(word)) return say("Not accepted.", true);
     if (!puzzle.wordSet.has(word)) return say(`Not in the word list: ${word}.`, true);
 
     const before = new Set(scorePlay(play.found, puzzle).earned.map((s) => s.id));
@@ -776,7 +863,10 @@ async function init() {
   document.title = `Sourceword (${BUILD})`;
   el.date.textContent = today;
   try {
-    const allWords = await loadWords();
+    const [rawWords, common, blocked] = await Promise.all([loadWords(), loadCommon(), loadBlocked()]);
+    COMMON = common;
+    BLOCKED = blocked;
+    const allWords = rawWords.filter((w) => !blocked.has(w));
     const entries = await loadEntries();
     const valid = {};
     for (const [date, e] of Object.entries(entries)) {
@@ -793,7 +883,7 @@ async function init() {
       return say(`No puzzle for ${today}.`, true);
     }
     el.date.textContent = date;
-    const puzzle = { source: valid[date].source };
+    const puzzle = { source: valid[date].source, core: valid[date].core || [], common: COMMON };
     // Mode for the day: the locked one if the day has play, else the preference.
     const saved = loadPlay(date);
     const started = saved.done || (saved.found || []).length > 0;
@@ -802,6 +892,10 @@ async function init() {
     syncModeButtons();
     puzzle.words = validWordsFor(puzzle.source, allWords);
     puzzle.wordSet = new Set(puzzle.words);
+    const curated = new Set(puzzle.core.filter((w) => puzzle.wordSet.has(w)));
+    const dropped = puzzle.core.filter((w) => !puzzle.wordSet.has(w));
+    if (dropped.length) console.warn(`Sourceword: curated core words not valid for ${date}: ${dropped.join(", ")}`);
+    puzzle.curated = curated.size ? curated : null;
     start(date, puzzle);
   } catch (err) {
     say("Couldn't load today's puzzle.", true);
