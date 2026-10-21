@@ -1,4 +1,4 @@
-// Sourceword, build 0.3.0-b18
+// Sourceword, build 0.3.0-b19
 // Scoring: base by length (Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11), 4-letter minimum.
 // Bonus slots, each worth the points of one word of that length:
 //   - all letters: a valid word using every distinct source letter (one slot per such word)
@@ -6,9 +6,12 @@
 //   - length: every word of one length found ("all" goal) or that length's core found ("ten" goal)
 //   - all words: every word found ("all" goal) or the core complete ("ten" goal), valued at the source length
 // Goal: "all" counts every valid word. "ten" counts up to 10 words per length; extra words still score.
-// One play per day, saved on-device. Puzzle loaded from puzzles.json by ET date.
+// One play per day, saved on-device. Daily words come from the Sourceword tab of the froobaloodb
+// Google Sheet, read in the browser (like Caseboard). puzzles.json is the fallback if the sheet can't be read.
+// A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
+// Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b18";
+const BUILD = "0.3.0-b19";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { easy: 3, normal: 4, hard: 4 };
@@ -191,11 +194,104 @@ function todayET() {
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
-async function loadPuzzles() {
-  if (window.PUZZLE_DATA) return window.PUZZLE_DATA;
-  const res = await fetch("puzzles.json", { cache: "no-cache" });
-  if (!res.ok) throw new Error(`puzzles.json: HTTP ${res.status}`);
-  return res.json();
+// Daily words: the Sourceword tab of the Google Sheet (read in the browser, the same way Caseboard reads its Puzzles tab).
+const SHEET_ID = "1x6s2B4He9OoMUQgSuK1Rm3Ag7QWJ_ZuvaygkUGn_POo";
+const SHEET_TAB = "Sourceword";
+const SHEET_YEAR = 2026; // the sheet's dates have no year; this fills it in
+const BAND_LOW = 15;
+const BAND_HIGH = 50;
+const BAND_MIN_LENGTH = 4;
+
+// Minimal CSV parser (quoted fields, embedded commas). Google's CSV export quotes cells that need it.
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; } else { inQuotes = false; }
+      } else {
+        field += c;
+      }
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ",") {
+      row.push(field); field = "";
+    } else if (c === "\r") {
+      // ignored; \n ends the row
+    } else if (c === "\n") {
+      row.push(field); rows.push(row); row = []; field = "";
+    } else {
+      field += c;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows.filter((r) => r.some((v) => v !== ""));
+}
+
+// "10/21", "10/21/2026" or "2026-10-21" -> "2026-10-21". Null if unreadable.
+function isoDate(raw) {
+  const s = (raw || "").trim();
+  const pad = (n) => String(n).padStart(2, "0");
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) return `${m[1]}-${pad(m[2])}-${pad(m[3])}`;
+  m = s.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?$/);
+  if (m) return `${m[3] || SHEET_YEAR}-${pad(m[1])}-${pad(m[2])}`;
+  return null;
+}
+
+// Sheet columns by position: Date, Source Word, Valid Words, Status, Notes, Subwords, Band.
+// Rows are skipped if the date or word is unusable, or the status is "draft".
+async function loadSheetEntries() {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_TAB)}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`sheet: HTTP ${res.status}`);
+  const rows = parseCsv(await res.text()).slice(1);
+  const out = {};
+  for (const r of rows) {
+    const date = isoDate(r[0]);
+    const source = (r[1] || "").trim().toLowerCase();
+    const status = (r[3] || "").trim().toLowerCase();
+    if (!date || !/^[a-z]+$/.test(source) || status === "draft") continue;
+    if (!out[date]) out[date] = { source };
+  }
+  if (!Object.keys(out).length) throw new Error("sheet: no usable rows");
+  return out;
+}
+
+// Fallback: puzzles.json (or window.PUZZLE_DATA in tests), keyed by date.
+async function loadFallbackEntries() {
+  const data = window.PUZZLE_DATA || (await (await fetch("puzzles.json", { cache: "no-cache" })).json());
+  const out = {};
+  for (const [date, p] of Object.entries(data)) {
+    const source = String(p.source || "").trim().toLowerCase();
+    if (/^[a-z]+$/.test(source)) out[date] = { source };
+  }
+  return out;
+}
+
+async function loadEntries() {
+  try {
+    return await loadSheetEntries();
+  } catch (err) {
+    console.warn("Sourceword: sheet unavailable, using puzzles.json:", err);
+    return loadFallbackEntries();
+  }
+}
+
+// Words in the band count: checking-list words at 4+ letters that fit the source, source excluded.
+function bandCount(source, allWords) {
+  return allWords.filter((w) => w.length >= BAND_MIN_LENGTH && w !== source && fitsSource(w, source)).length;
+}
+
+// Today if it's valid, else the most recent earlier valid day.
+function pickDate(valid, today) {
+  if (valid[today]) return today;
+  const past = Object.keys(valid).filter((d) => d < today).sort();
+  return past.length ? past[past.length - 1] : null;
 }
 
 // Checking list (common words, see README): every guess must be in it.
@@ -656,26 +752,34 @@ function start(date, puzzle) {
 }
 
 async function init() {
-  const date = todayET();
+  const today = todayET();
   document.title = `Sourceword (${BUILD})`;
-  el.date.textContent = date;
+  el.date.textContent = today;
   try {
-    const puzzles = await loadPuzzles();
-    const puzzle = puzzles[date];
-    if (!puzzle) {
+    const allWords = await loadWords();
+    const entries = await loadEntries();
+    const valid = {};
+    for (const [date, e] of Object.entries(entries)) {
+      const n = bandCount(e.source, allWords);
+      if (n >= BAND_LOW && n <= BAND_HIGH) valid[date] = e;
+      else console.warn(`Sourceword: ${date} (${e.source}) has ${n} valid words, outside ${BAND_LOW} to ${BAND_HIGH}; skipped.`);
+    }
+    const date = pickDate(valid, today);
+    if (!date) {
       el.source.textContent = "none";
       el.input.disabled = true;
       el.button.disabled = true;
       el.finish.disabled = true;
-      return say(`No puzzle for ${date}.`, true);
+      return say(`No puzzle for ${today}.`, true);
     }
-    // Mode for today: the locked one if the day has play, else the preference.
+    el.date.textContent = date;
+    const puzzle = { source: valid[date].source };
+    // Mode for the day: the locked one if the day has play, else the preference.
     const saved = loadPlay(date);
     const started = saved.done || (saved.found || []).length > 0;
     MODE = saved.mode || (started ? "normal" : PREF_MODE);
     MIN_LENGTH = MODES[MODE];
     syncModeButtons();
-    const allWords = await loadWords();
     puzzle.words = validWordsFor(puzzle.source, allWords);
     puzzle.wordSet = new Set(puzzle.words);
     start(date, puzzle);
