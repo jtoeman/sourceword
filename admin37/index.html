@@ -29,18 +29,19 @@
       </div>
       <div class="titlebar">
         <h1>Sourceword</h1>
-        <div class="goal" role="group" aria-label="Goal">
-          <button type="button" class="seg" id="goal-all" aria-pressed="true">All words</button>
-          <button type="button" class="seg" id="goal-ten" aria-pressed="false">10 per length</button>
-        </div>
       </div>
       <p class="source"><strong id="source"></strong></p>
       <div class="mode-row">
-        <span class="mode-label">Mode</span>
-        <div class="goal" role="group" aria-label="Mode">
-          <button type="button" class="seg" id="mode-easy" aria-pressed="false">Easy</button>
-          <button type="button" class="seg" id="mode-normal" aria-pressed="true">Normal</button>
-          <button type="button" class="seg" id="mode-hard" aria-pressed="false">Hard</button>
+        <div class="mode-group">
+          <span class="mode-label">Mode</span>
+          <div class="goal" role="group" aria-label="Mode">
+            <button type="button" class="seg" id="mode-normal" aria-pressed="true">Normal</button>
+            <button type="button" class="seg" id="mode-hard" aria-pressed="false">Hard</button>
+          </div>
+        </div>
+        <div class="goal" role="group" aria-label="Goal">
+          <button type="button" class="seg" id="goal-all" aria-pressed="true">All words</button>
+          <button type="button" class="seg" id="goal-ten" aria-pressed="false">10 per length</button>
         </div>
       </div>
     </header>
@@ -53,6 +54,7 @@
       </div>
       <p class="result-line" id="res-core"></p>
       <button type="button" id="share-btn" class="share-btn">Share spoiler-free result</button>
+      <a id="next-game" class="next-game" href="https://froobaloo.com/wordsummit/">Next game: Wordsummit →</a>
       <p class="share-actions"><span id="share-note" class="muted-note" aria-live="polite"></span></p>
       <pre id="share-text" class="share"></pre>
     </section>
@@ -124,22 +126,14 @@
     </dialog>
 
     <footer>
-      <a class="brand" href="https://froobaloo.com/">froobaloo</a>
+      <a class="brand" href="https://froobaloo.com/"><img class="brand-mark" src="froobaloo-mark.svg" alt="" width="20" height="20">froobaloo</a>
       <span class="footer-right">
         <button type="button" id="archive-btn" class="secondary admin-toggle">Archive</button>
         <button type="button" id="howto-btn" class="secondary admin-toggle">How to play</button>
+        <a class="secondary admin-toggle btn-link" href="https://ko-fi.com/jeremyt37" target="_blank" rel="noopener">Support me</a>
       </span>
     </footer>
   </main>
   <script src="app.js"></script>
-  <script src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"></script>
-  <script>
-    kofiWidgetOverlay.draw('jeremyt37', {
-      'type': 'floating-chat',
-      'floating-chat.donateButton.text': 'Support me',
-      'floating-chat.donateButton.background-color': '#F5B82E',
-      'floating-chat.donateButton.text-color': '#17142A'
-    });
-  </script>
 </body>
 </html>

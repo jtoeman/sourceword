@@ -11,10 +11,10 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b29";
+const BUILD = "0.3.0-b30";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
-const MODES = { easy: 3, normal: 4, hard: 4 };
+const MODES = { normal: 4, hard: 4 };
 const MODE_KEY = "sourceword:mode";
 const CORE_CAP = 10;
 const CORE_COLUMN = 7; // sheet column H: optional curated core words for the day, comma-separated
@@ -152,7 +152,6 @@ const el = {
   reset: document.getElementById("reset"),
   goalAll: document.getElementById("goal-all"),
   goalTen: document.getElementById("goal-ten"),
-  modeEasy: document.getElementById("mode-easy"),
   modeNormal: document.getElementById("mode-normal"),
   modeHard: document.getElementById("mode-hard"),
   bonusHead: document.getElementById("bonus-head"),
@@ -185,11 +184,10 @@ function modeLocked() {
 }
 
 function syncModeButtons() {
-  el.modeEasy.setAttribute("aria-pressed", MODE === "easy" ? "true" : "false");
   el.modeNormal.setAttribute("aria-pressed", MODE === "normal" ? "true" : "false");
   el.modeHard.setAttribute("aria-pressed", MODE === "hard" ? "true" : "false");
   const locked = modeLocked();
-  for (const b of [el.modeEasy, el.modeNormal, el.modeHard]) {
+  for (const b of [el.modeNormal, el.modeHard]) {
     b.disabled = locked;
     b.title = locked ? "Mode is set by your first word today." : "";
   }
@@ -206,7 +204,6 @@ function setMode(mode) {
   location.reload(); // The word list and minimum length change with the mode.
 }
 
-el.modeEasy.addEventListener("click", () => setMode("easy"));
 el.modeNormal.addEventListener("click", () => setMode("normal"));
 el.modeHard.addEventListener("click", () => setMode("hard"));
 syncModeButtons();
@@ -989,8 +986,7 @@ const HOWTO_BODY = [
      <tr><td>6 letters</td><td>3 points</td></tr>
      <tr><td>7 letters</td><td>5 points</td></tr>
      <tr><td>8+ letters</td><td>11 points</td></tr>
-   </table>
-   <p class="muted">Easy mode also counts 3-letter words, at 1 point each.</p>`,
+   </table>`,
   `<p><strong>10 per length</strong> is the default goal. Core words are the day's curated list, or the first 10 common words of each length. Other words still score as bonus.</p>
    <p><strong>All words</strong> counts every word in the puzzle.</p>
    <p>Bonus slots fill when you find every letter of the source word, a perfect reuse of its letter counts, every word of a length, or all words.</p>
@@ -1167,7 +1163,8 @@ async function init() {
     // Mode for the day: the locked one if the day has play, else the preference.
     const saved = loadPlay(date);
     const started = saved.done || (saved.found || []).length > 0;
-    MODE = saved.mode || (started ? "normal" : PREF_MODE);
+    const savedMode = saved.mode in MODES ? saved.mode : null; // a day locked to a retired mode plays as Normal
+    MODE = savedMode || (started ? "normal" : PREF_MODE);
     MIN_LENGTH = MODES[MODE];
     syncModeButtons();
     puzzle.words = validWordsFor(puzzle.source, allWords);
