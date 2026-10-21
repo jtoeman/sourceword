@@ -1,4 +1,4 @@
-// Sourceword, build 0.3.0-b24
+// Sourceword, build 0.3.0-b25
 // Scoring: base by length (Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11), 4-letter minimum.
 // Bonus slots, each worth the points of one word of that length:
 //   - all letters: a valid word using every distinct source letter (one slot per such word)
@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b24";
+const BUILD = "0.3.0-b25";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { easy: 3, normal: 4, hard: 4 };
@@ -50,14 +50,8 @@ try {
   // Storage blocked: the toggle works for this visit.
 }
 
-// Admin test view: on-screen toggle in the footer, remembered on this device. Also on via #debug or ?debug=1. Remove before shipping.
-const ADMIN_KEY = "sourceword:admin";
-let ADMIN = location.hash === "#debug" || new URLSearchParams(location.search).has("debug");
-try {
-  if (localStorage.getItem(ADMIN_KEY) === "1") ADMIN = true;
-} catch {
-  // Storage blocked: the toggle still works for this visit.
-}
+// Admin test view: only on the /admin/ page. It is not linked from the game. Remove before shipping.
+const ADMIN = /\/admin\/?$/.test(location.pathname);
 let current = null; // { puzzle, play } for redraws
 
 const el = {
@@ -105,7 +99,6 @@ const el = {
   lengths: document.getElementById("lengths"),
   reveal: document.getElementById("reveal"),
   reset: document.getElementById("reset"),
-  adminToggle: document.getElementById("admin-toggle"),
   goalAll: document.getElementById("goal-all"),
   goalTen: document.getElementById("goal-ten"),
   modeEasy: document.getElementById("mode-easy"),
@@ -113,18 +106,6 @@ const el = {
   modeHard: document.getElementById("mode-hard"),
   bonusHead: document.getElementById("bonus-head"),
 };
-
-function setAdmin(on) {
-  ADMIN = on;
-  try {
-    localStorage.setItem(ADMIN_KEY, on ? "1" : "0");
-  } catch {
-    // Storage blocked: the setting lasts until reload.
-  }
-  el.adminToggle.textContent = on ? "Admin: on" : "Admin: off";
-  if (current) renderDebug(current.puzzle, current.play);
-  else el.debug.hidden = !on;
-}
 
 function syncGoalButtons() {
   el.goalAll.setAttribute("aria-pressed", GOAL === "all" ? "true" : "false");
@@ -142,8 +123,6 @@ function setGoal(goal) {
   if (current) render(current.puzzle, current.play);
 }
 
-el.adminToggle.textContent = ADMIN ? "Admin: on" : "Admin: off";
-el.adminToggle.addEventListener("click", () => setAdmin(!ADMIN));
 el.goalAll.addEventListener("click", () => setGoal("all"));
 el.goalTen.addEventListener("click", () => setGoal("ten"));
 syncGoalButtons();
