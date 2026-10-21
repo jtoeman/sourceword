@@ -1,38 +1,31 @@
-// Word reports from the Sourceword game. This file goes in the same Apps Script project as
-// sourceword-check.gs (Extensions > Apps Script on the froobaloodb sheet).
+// Sourceword word reports. Add this to the Caseboard reminders Apps Script (caseboard-reminders.gs),
+// the project bound to the froobaloodb sheet, so the existing web app URL handles them too.
 //
-// Setup: Deploy > New deployment > type "Web app", Execute as "Me", Who has access "Anyone".
-// Copy the web app URL into REPORT_URL in app.js. Re-deploy after any change here.
+// 1. In doPost, add this line directly under the movieleague_theme line (before the email check):
+//      if (body.kind === 'sourceword_word') return saveWordReport_(body);
+// 2. Paste the function below anywhere in the same file.
+// 3. Deploy > Manage deployments > edit (pencil) > Version: New version > Deploy.
+//    The web app URL stays the same, so no change is needed in the game.
 //
-// Each report adds a row to the "Sourceword suggestions" tab with Status "new". Curate by
-// setting Status to "added" or "rejected".
+// Each report adds a row to the "Sourceword suggestions" tab with Status "new".
+// Curate by setting Status to "added" or "rejected".
 
-const REPORT_TAB = "Sourceword suggestions";
-const REPORT_HEADERS = ["Reported at", "Date", "Source Word", "Word", "Mode", "Goal", "Status"];
+var WORD_REPORT_TAB = 'Sourceword suggestions';
 
-function doPost(e) {
-  try {
-    const data = JSON.parse(e.postData.contents);
-    const word = String(data.word || "").toLowerCase();
-    const source = String(data.source || "").toLowerCase();
-    const date = String(data.date || "");
-    if (!/^[a-z]{4,15}$/.test(word) || !/^[a-z]{4,12}$/.test(source) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return reply("bad input");
-    }
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let tab = ss.getSheetByName(REPORT_TAB);
-    if (!tab) {
-      tab = ss.insertSheet(REPORT_TAB);
-      tab.appendRow(REPORT_HEADERS);
-      tab.setFrozenRows(1);
-    }
-    tab.appendRow([new Date(), date, source, word, String(data.mode || ""), String(data.goal || ""), "new"]);
-    return reply("ok");
-  } catch (err) {
-    return reply("error");
+function saveWordReport_(body) {
+  var word = String(body.word || '').toLowerCase();
+  var source = String(body.source || '').toLowerCase();
+  var date = String(body.date || '');
+  if (!/^[a-z]{4,15}$/.test(word) || !/^[a-z]{4,12}$/.test(source) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return ContentService.createTextOutput('bad word report');
   }
-}
-
-function reply(text) {
-  return ContentService.createTextOutput(text);
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var tab = ss.getSheetByName(WORD_REPORT_TAB);
+  if (!tab) {
+    tab = ss.insertSheet(WORD_REPORT_TAB);
+    tab.appendRow(['Reported at', 'Date', 'Source Word', 'Word', 'Mode', 'Goal', 'Status']);
+    tab.setFrozenRows(1);
+  }
+  tab.appendRow([new Date(), date, source, word, String(body.mode || ''), String(body.goal || ''), 'new']);
+  return ContentService.createTextOutput('ok');
 }

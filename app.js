@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b33";
+const BUILD = "0.3.0-b34";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -57,9 +57,9 @@ const ADMIN = /\/admin37\/?$/.test(location.pathname);
 const AMPLITUDE_KEY = "6ae928be8b28b6eb768a79b0fdf1fb3f";
 const AMPLITUDE_URL = "https://api2.amplitude.com/2/httpapi";
 // Where the "Next game" button goes after a finished day.
-// Word reports go to the sheet through an Apps Script web app (sheets/sourceword-report.gs).
-// Until it is deployed and this is set, no report button shows.
-const REPORT_URL = "";
+// Word reports go to the sheet through the Caseboard reminders Apps Script web app, which handles
+// kind "sourceword_word" (see sheets/sourceword-report.gs for the code to add to that script).
+const REPORT_URL = "https://script.google.com/macros/s/AKfycbywhEd7SRsyU1gmcekJ38g52yKKcKMDNBTw5mJrVFyd1dk31W1Cm2VCUpWP7n-1jRXJuA/exec";
 const NEXT_GAME = { name: "Wordsummit", url: "https://froobaloo.com/wordsummit/" };
 
 function randomId() {
@@ -720,7 +720,7 @@ function sayReportable(text, word, date, source) {
       method: "POST",
       mode: "no-cors",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ word, date, source, mode: MODE, goal: GOAL }),
+      body: JSON.stringify({ kind: "sourceword_word", word, date, source, mode: MODE, goal: GOAL }),
       keepalive: true,
     }).catch(() => {});
     btn.disabled = true;
