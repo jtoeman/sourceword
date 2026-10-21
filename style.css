@@ -693,3 +693,20 @@ footer {
   color: var(--muted);
   white-space: nowrap;
 }
+
+.next-game {
+  display: block;
+  margin-top: 0.6rem;
+  padding: 0.7rem 1rem;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--fg);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.next-game:hover,
+.next-game:focus-visible {
+  border-color: var(--accent);
+}

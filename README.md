@@ -35,7 +35,9 @@ Each daily source word must have 15 to 50 valid words (4+ letters). Check a cand
 
 Step 8 (build 0.3.0-b21): obscure words (not common English, see common.json) are allowed and always bonus. Core is the day's curated list from the sheet's Core column (column H, comma-separated) if it has one, otherwise the first 10 common words per length. blocked.json lists words that are never accepted or counted. A blocked guess gets "Not accepted."
 
-Step 12 (build 0.3.0-b25): admin view moved to /admin/ (admin/index.html). The game page no longer has an admin toggle, #debug or ?debug=1.
+Step 13 (build 0.3.0-b26): analytics via the Amplitude HTTP API (Puzzle Started, Puzzle Completed, Share Result), a Next game button on the result card (NEXT_GAME in app.js). Admin view is at /admin37/ (admin37/index.html).
+
+Step 12 (build 0.3.0-b25): admin view moved to a separate page (now /admin37/). The game page has no admin toggle, #debug or ?debug=1.
 
 Step 11 (build 0.3.0-b24): result card moves to the top, with a Share button. Archive lists past sheet days (?day=YYYY-MM-DD opens one). How to play shows on a browser's first visit.
 
