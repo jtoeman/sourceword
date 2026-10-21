@@ -5,6 +5,7 @@
 
 const TAB = 'Sourceword';
 const WORDS_URL = 'https://raw.githubusercontent.com/jtoeman/sourceword/site/words.json';
+const BLOCKED_URL = 'https://raw.githubusercontent.com/jtoeman/sourceword/site/blocked.json';
 const MIN_LENGTH = 4;
 const LOW = 15;
 const HIGH = 50;
@@ -15,7 +16,11 @@ function loadWords_() {
   if (!wordCache_) {
     const res = UrlFetchApp.fetch(WORDS_URL, { muteHttpExceptions: true });
     if (res.getResponseCode() !== 200) throw new Error('words.json: HTTP ' + res.getResponseCode());
-    wordCache_ = JSON.parse(res.getContentText());
+    const blockedRes = UrlFetchApp.fetch(BLOCKED_URL, { muteHttpExceptions: true });
+    const blocked = blockedRes.getResponseCode() === 200 ? JSON.parse(blockedRes.getContentText()) : [];
+    const blockedSet = {};
+    blocked.forEach(function (w) { blockedSet[String(w).toLowerCase()] = true; });
+    wordCache_ = JSON.parse(res.getContentText()).filter(function (w) { return !blockedSet[w]; });
   }
   return wordCache_;
 }

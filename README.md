@@ -33,11 +33,18 @@ Each daily source word must have 15 to 50 valid words (4+ letters). Check a cand
     python3 tools/check_source.py garden silent
     python3 tools/check_source.py --puzzles    # checks every day in puzzles.json
 
+Step 8 (build 0.3.0-b21): obscure words (not common English, see common.json) are allowed and always bonus. Core is the day's curated list from the sheet's Core column (column H, comma-separated) if it has one, otherwise the first 10 common words per length. blocked.json lists words that are never accepted or counted. A blocked guess gets "Not accepted."
+
 Step 7 (build 0.3.0-b20): in the "ten" goal, the first 10 found words of each length are core and listed as found. Extra words still score 1 point each and are listed in the bonus region.
 
 Step 6 (build 0.3.0-b19): daily words are read from the Google Sheet in the browser, with puzzles.json as the fallback.
 
 Step 5 (build 0.3.0-b18): three modes. Easy counts 3-letter words (1 point each). Normal is 4+ letters. Hard is Normal with the countdown, rank, length counts and bonus slots hidden. The mode is set from the header row and is locked once the day has a word.
+
+## Word lists
+
+- `common.json`: checking-list words with Zipf frequency 3.0 or higher. Rebuild with `pip install wordfreq` then `python3 tools/build_common.py words.json`.
+- `blocked.json`: words never accepted or counted. Start empty; add lowercase words as a JSON array.
 
 ## Word list
 
