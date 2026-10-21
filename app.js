@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b30";
+const BUILD = "0.3.0-b31";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -132,6 +132,8 @@ const el = {
   resScore: document.getElementById("res-score"),
   resRank: document.getElementById("res-rank"),
   resCore: document.getElementById("res-core"),
+  resTime: document.getElementById("res-time"),
+  timer: document.getElementById("timer"),
   howtoBtn: document.getElementById("howto-btn"),
   howto: document.getElementById("howto"),
   howtoBody: document.getElementById("howto-body"),
@@ -481,32 +483,6 @@ function scorePlay(found, puzzle) {
   return { base, slots, earned, total: base + bonusTotal };
 }
 
-// Words left toward the goal, and words left by length (MIN_LENGTH up to the longest word).
-// "all": every valid word counts. "ten": each length counts up to CORE_CAP.
-function progress(puzzle, play) {
-  const total = {};
-  for (const w of puzzle.words) total[w.length] = (total[w.length] || 0) + 1;
-  const found = {};
-  for (const w of play.found) found[w.length] = (found[w.length] || 0) + 1;
-
-  const lengths = Object.keys(total).map(Number);
-  const max = lengths.length ? Math.max(...lengths) : 0;
-  const cap = (n) => (GOAL === "ten" ? Math.min(CORE_CAP, n) : n);
-
-  let remaining = 0;
-  let goal = 0;
-  const perLength = [];
-  for (let n = MIN_LENGTH; n <= max; n++) {
-    const goalN = cap(total[n] || 0);
-    const foundN = Math.min(found[n] || 0, goalN);
-    const left = goalN - foundN;
-    remaining += left;
-    goal += goalN;
-    perLength.push(`${n} (${left})`);
-  }
-  return { remaining, goal, text: perLength.join(", ") };
-}
-
 // Milestone name for the share of the goal found so far.
 function rankFor(p) {
   const pct = p.goal > 0 ? ((p.goal - p.remaining) / p.goal) * 100 : 100;
@@ -688,6 +664,9 @@ function renderResults(date) {
   el.resScore.textContent = play.score;
   el.resRank.textContent = play.rank;
   el.resCore.textContent = `${play.goalFound} of ${play.goalTotal} ${play.goalMode === "ten" ? "core words" : "words"} found`;
+  el.resTime.textContent = play.coreDone
+    ? `You found all the core words in ${fmtTime(play.coreMs)}!`
+    : `Core words not all found. Time played: ${fmtTime(play.activeMs || 0)}.`;
   el.shareText.textContent = shareTextFor(date, play);
   el.shareNote.textContent = "";
 }
@@ -755,6 +734,11 @@ function countByLength(words) {
 
 function splitFound(found, puzzle) {
   if (GOAL !== "ten") return { core: found.slice(), extra: [] };
+  return splitCore(found, puzzle);
+}
+
+// Core and bonus split for the day, whichever goal is on.
+function splitCore(found, puzzle) {
   const core = [];
   const extra = [];
   const seen = {};
@@ -769,6 +753,15 @@ function splitFound(found, puzzle) {
     }
   }
   return { core, extra };
+}
+
+// Core words still to find. Core means the same thing under both goals.
+function coreLeft(puzzle, play) {
+  const goal = coreGoal(puzzle);
+  const found = countByLength(splitCore(play.found, puzzle).core);
+  let left = 0;
+  for (const n of Object.keys(goal)) left += Math.max(0, goal[n] - (found[n] || 0));
+  return left;
 }
 
 // Core words per length for the "ten" goal.
@@ -864,6 +857,7 @@ function render(puzzle, play) {
   el.finish.disabled = over;
   renderDebug(puzzle, play);
   syncModeButtons();
+  showTime();
   return result;
 }
 
@@ -877,6 +871,7 @@ function finish(date, puzzle, play) {
   play.goalTotal = p.goal;
   play.goalFound = p.goal - p.remaining;
   play.grid = gridRows(puzzle, play);
+  checkCore(play, puzzle);
   savePlay(date, play);
   render(puzzle, play);
   say(`Done. ${play.found.length} of ${puzzle.words.length} found. Score ${play.score}.`);
@@ -897,6 +892,69 @@ function finish(date, puzzle, play) {
   el.results.scrollIntoView?.({ behavior: "smooth", block: "start" });
 }
 
+// Timer. Counts active play time for the day on screen: only while the tab is visible and the player
+// touched something in the last 60 seconds. It freezes when every core word is found.
+const IDLE_LIMIT_MS = 60 * 1000;
+const TICK_CAP_MS = 1500; // a longer gap means the device slept, so count at most this much
+let lastActivity = 0;
+let lastTick = Date.now();
+let timed = null; // { date, play } for the day on screen
+let unsaved = 0; // counted ticks not yet saved
+
+function fmtTime(ms) {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = String(s % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
+}
+
+function markActivity() {
+  lastActivity = Date.now();
+}
+for (const ev of ["pointerdown", "keydown", "touchstart", "scroll"]) {
+  document.addEventListener(ev, markActivity, { capture: true, passive: true });
+}
+
+function flushTime() {
+  if (timed && unsaved) {
+    savePlay(timed.date, timed.play);
+    unsaved = 0;
+  }
+}
+
+function showTime() {
+  if (!timed) return;
+  const p = timed.play;
+  el.timer.textContent = p.coreDone ? `Core ${fmtTime(p.coreMs)}` : `Time ${fmtTime(p.activeMs || 0)}`;
+}
+
+// Freeze the core time once every core word is in. Returns true the first time it happens.
+function checkCore(play, puzzle) {
+  if (play.coreDone || coreLeft(puzzle, play) > 0) return false;
+  play.coreDone = true;
+  play.coreMs = play.activeMs || 0;
+  return true;
+}
+
+setInterval(() => {
+  const now = Date.now();
+  const gap = now - lastTick;
+  lastTick = now;
+  if (!timed || timed.play.done || timed.play.coreDone) return;
+  if (document.visibilityState !== "visible" || now - lastActivity > IDLE_LIMIT_MS) return;
+  timed.play.activeMs = (timed.play.activeMs || 0) + Math.min(gap, TICK_CAP_MS);
+  unsaved += 1;
+  if (unsaved >= 10) flushTime();
+  showTime();
+}, 1000);
+
+document.addEventListener("visibilitychange", () => {
+  lastTick = Date.now();
+  flushTime();
+});
+window.addEventListener("pagehide", flushTime);
+
 function start(date, puzzle) {
   const play = loadPlay(date);
   if (!play.mode) play.mode = MODE;
@@ -907,6 +965,7 @@ function start(date, puzzle) {
   }
   renderSource(puzzle.source, "");
   el.input.addEventListener("input", () => renderSource(puzzle.source, el.input.value));
+  timed = { date, play };
   render(puzzle, play);
 
   if (play.done) {
@@ -931,16 +990,16 @@ function start(date, puzzle) {
     if (!puzzle.wordSet.has(word)) return say(`Not in the word list: ${word}.`, true);
 
     const before = new Set(scorePlay(play.found, puzzle).earned.map((s) => s.id));
-    const coreBefore = progress(puzzle, play).remaining;
     play.found.push(word);
+    const coreNow = checkCore(play, puzzle);
     savePlay(date, play);
     const result = render(puzzle, play);
 
     const earned = result.earned.filter((s) => !before.has(s.id));
     const bonusText = earned.map((s) => ` ${s.label} +${s.points}.`).join("");
-    const coreText = GOAL === "ten" && coreBefore > 0 && progress(puzzle, play).remaining === 0
-      ? " Core complete. Bonus words still count."
-      : "";
+    const coreText = !coreNow ? "" : GOAL === "ten"
+      ? ` Core complete in ${fmtTime(play.coreMs)}. Bonus words still count.`
+      : ` All core words found in ${fmtTime(play.coreMs)}.`;
     say(`${word}: +${pointsForLength(word.length)}.${bonusText}${coreText}`);
 
     if (play.found.length === puzzle.words.length) finish(date, puzzle, play);
