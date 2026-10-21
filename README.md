@@ -16,7 +16,7 @@ Open `index.html` in a browser. No build step.
 
 ## Curator rule: source word band
 
-Each daily source word must have 25 to 50 valid words (4+ letters). Check a candidate before it goes in the sheet:
+Each daily source word must have 15 to 50 valid words (4+ letters). Check a candidate before it goes in the sheet:
 
     python3 tools/check_source.py garden silent
     python3 tools/check_source.py --puzzles    # checks every day in puzzles.json

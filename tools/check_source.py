@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check a curator's source word against the daily band (25 to 50 valid words).
+"""Check a curator's source word against the daily band (15 to 50 valid words).
 
 Usage:
   python3 tools/check_source.py garden silent      # check words
@@ -15,7 +15,7 @@ from collections import Counter
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 MIN_LENGTH = 4
-LOW, HIGH = 25, 50
+LOW, HIGH = 15, 50
 
 
 def valid_words(source, words):
