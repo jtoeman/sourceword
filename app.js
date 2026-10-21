@@ -1,4 +1,4 @@
-// Sourceword, build 0.3.0-b25
+// Sourceword, build 0.3.0-b26
 // Scoring: base by length (Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11), 4-letter minimum.
 // Bonus slots, each worth the points of one word of that length:
 //   - all letters: a valid word using every distinct source letter (one slot per such word)
@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b25";
+const BUILD = "0.3.0-b26";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { easy: 3, normal: 4, hard: 4 };
@@ -51,7 +51,57 @@ try {
 }
 
 // Admin test view: only on the /admin/ page. It is not linked from the game. Remove before shipping.
-const ADMIN = /\/admin\/?$/.test(location.pathname);
+const ADMIN = /\/admin37\/?$/.test(location.pathname);
+
+// Analytics: Amplitude HTTP API, called directly so no SDK is loaded. Events: Puzzle Started, Puzzle Completed, Share Result.
+const AMPLITUDE_KEY = "6ae928be8b28b6eb768a79b0fdf1fb3f";
+const AMPLITUDE_URL = "https://api2.amplitude.com/2/httpapi";
+// Where the "Next game" button goes after a finished day.
+const NEXT_GAME = { name: "Froobaloo", url: "https://froobaloo.com/" };
+
+function randomId() {
+  return window.crypto && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+// Anonymous per-browser id, kept on this device. Failures never affect play.
+function deviceId() {
+  try {
+    let id = localStorage.getItem("sourceword:device");
+    if (!id) {
+      id = randomId();
+      localStorage.setItem("sourceword:device", id);
+    }
+    return id;
+  } catch {
+    return "no-storage";
+  }
+}
+
+function track(eventType, props) {
+  try {
+    fetch(AMPLITUDE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "*/*" },
+      body: JSON.stringify({
+        api_key: AMPLITUDE_KEY,
+        events: [
+          {
+            device_id: deviceId(),
+            event_type: eventType,
+            time: Date.now(),
+            insert_id: randomId(),
+            platform: "Web",
+            app_version: BUILD,
+            event_properties: { ...props, game: "Sourceword" },
+          },
+        ],
+      }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    // Analytics must never break the game.
+  }
+}
 let current = null; // { puzzle, play } for redraws
 
 const el = {
@@ -91,6 +141,7 @@ const el = {
   howtoClose: document.getElementById("howto-close"),
   shareText: document.getElementById("share-text"),
   shareBtn: document.getElementById("share-btn"),
+  nextGame: document.getElementById("next-game"),
   archiveBtn: document.getElementById("archive-btn"),
   archive: document.getElementById("archive"),
   archiveList: document.getElementById("archive-list"),
@@ -634,6 +685,8 @@ function renderResults(date) {
     el.results.hidden = true;
     return;
   }
+  el.nextGame.href = NEXT_GAME.url;
+  el.nextGame.textContent = `Next game: ${NEXT_GAME.name} →`;
   el.results.hidden = false;
   el.resScore.textContent = play.score;
   el.resRank.textContent = play.rank;
@@ -656,6 +709,7 @@ function currentDay() {
 // Copies the spoiler-free result. Falls back to selecting the text where clipboard access is blocked.
 el.shareBtn.addEventListener("click", async () => {
   const text = el.shareText.textContent;
+  track("Share Result", { date: currentDay(), mode: MODE, goal: GOAL });
   try {
     await navigator.clipboard.writeText(text);
     el.shareNote.textContent = "Copied. Paste it anywhere.";
@@ -817,6 +871,7 @@ function render(puzzle, play) {
 }
 
 function finish(date, puzzle, play) {
+  const wasDone = play.done;
   play.done = true;
   const p = progress(puzzle, play);
   play.score = scorePlay(play.found, puzzle).total;
@@ -830,12 +885,29 @@ function finish(date, puzzle, play) {
   say(`Done. ${play.found.length} of ${puzzle.words.length} found. Score ${play.score}.`);
   renderStats(date);
   renderResults(date);
+  if (!wasDone) {
+    track("Puzzle Completed", {
+      date,
+      mode: play.mode,
+      goal: GOAL,
+      score: play.score,
+      rank: play.rank,
+      words_found: play.found.length,
+      core_found: play.goalFound,
+      core_total: play.goalTotal,
+    });
+  }
   el.results.scrollIntoView?.({ behavior: "smooth", block: "start" });
 }
 
 function start(date, puzzle) {
   const play = loadPlay(date);
   if (!play.mode) play.mode = MODE;
+  if (!play.started && !play.done && play.found.length === 0) {
+    play.started = true;
+    savePlay(date, play);
+    track("Puzzle Started", { date, mode: play.mode, goal: GOAL });
+  }
   renderSource(puzzle.source, "");
   el.input.addEventListener("input", () => renderSource(puzzle.source, el.input.value));
   render(puzzle, play);
