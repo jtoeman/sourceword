@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b32";
+const BUILD = "0.3.0-b33";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -57,6 +57,9 @@ const ADMIN = /\/admin37\/?$/.test(location.pathname);
 const AMPLITUDE_KEY = "6ae928be8b28b6eb768a79b0fdf1fb3f";
 const AMPLITUDE_URL = "https://api2.amplitude.com/2/httpapi";
 // Where the "Next game" button goes after a finished day.
+// Word reports go to the sheet through an Apps Script web app (sheets/sourceword-report.gs).
+// Until it is deployed and this is set, no report button shows.
+const REPORT_URL = "";
 const NEXT_GAME = { name: "Wordsummit", url: "https://froobaloo.com/wordsummit/" };
 
 function randomId() {
@@ -703,15 +706,23 @@ function say(text, isBad = false) {
   el.message.classList.toggle("bad", isBad);
 }
 
-// A rejection the player may think is wrong: offers a button that logs the word for the word list.
+// A rejection the player may think is wrong: offers a button that adds the word to the suggestions tab.
 function sayReportable(text, word, date, source) {
   say(text, true);
+  if (!REPORT_URL) return;
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "secondary report-btn";
   btn.textContent = "Report this word";
   btn.addEventListener("click", () => {
-    track("Word Reported", { word, date, source, mode: MODE, goal: GOAL, reason: "not in word list" });
+    // The endpoint replies with an opaque response, so a send that fails silently still looks sent.
+    fetch(REPORT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ word, date, source, mode: MODE, goal: GOAL }),
+      keepalive: true,
+    }).catch(() => {});
     btn.disabled = true;
     btn.textContent = "Reported. Thanks";
   });
