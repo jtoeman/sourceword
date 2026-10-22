@@ -67,6 +67,7 @@
     </form>
 
     <p id="message" role="status" aria-live="polite"></p>
+    <div id="toasts" class="toasts" aria-live="polite"></div>
 
     <section>
       <div class="score-row">
@@ -92,6 +93,9 @@
         <div><dt>Best streak</dt><dd id="stat-best">0</dd></div>
         <div><dt>Best score</dt><dd id="stat-best-score">0</dd></div>
       </dl>
+      <h3>Achievements</h3>
+      <ul id="ach-list" class="ach-list"></ul>
+      <p id="ach-empty" class="muted">None yet. Find a word to start.</p>
     </section>
 
     <section id="debug" hidden>

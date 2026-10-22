@@ -35,6 +35,8 @@ Each daily source word must have 15 to 50 valid words (4+ letters). Check a cand
 
 Step 8 (build 0.3.0-b21): obscure words (not common English, see common.json) are allowed and always bonus. Core is the day's curated list from the sheet's Core column (column H, comma-separated) if it has one, otherwise the first 10 common words per length. blocked.json lists words that are never accepted or counted. A blocked guess gets "Not accepted."
 
+Step 16 (build 0.3.0-b35): achievements. Toasts at the top when one is met, once per day. Earned achievements are listed under Stats.
+
 Step 15 (build 0.3.0-b33): "Report this word" on word-list rejections posts to the "Sourceword suggestions" tab through sheets/sourceword-report.gs (Apps Script web app). The button shows only once REPORT_URL is set in app.js.
 
 Step 14 (build 0.3.0-b31): active play time per day. Counts only while the tab is visible and the player acted in the last 60 seconds. Freezes when every core word is found ("You found all the core words in M:SS!" on the result card). Removed Easy mode; Ko-fi support link in the footer.
