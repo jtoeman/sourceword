@@ -864,3 +864,9 @@ footer {
 .next-game:focus-visible {
   border-color: var(--accent);
 }
+
+/* The most recent guess, highlighted. Kept last so it overrides the bonus styling. */
+.chips li.latest {
+  background: var(--good);
+  color: var(--bg);
+}
