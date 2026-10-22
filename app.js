@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b39";
+const BUILD = "0.3.0-b40";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -111,6 +111,7 @@ const el = {
   form: document.getElementById("guess-form"),
   input: document.getElementById("guess"),
   button: document.querySelector("#guess-form button"),
+  hint: document.getElementById("hint"),
   message: document.getElementById("message"),
   score: document.getElementById("score"),
   count: document.getElementById("count"),
@@ -823,6 +824,67 @@ function coreGoal(puzzle) {
   return goal;
 }
 
+// Score on screen: words and bonuses earned, less one point per hint, never below 0.
+function displayScore(play, puzzle) {
+  return Math.max(0, scorePlay(play.found, puzzle).total - (play.hints || 0));
+}
+
+// Words a hint may point at: core words still to find. Once those are done, any word still to find (bonus).
+function hintPool(puzzle, play) {
+  const found = new Set(play.found);
+  const goal = coreGoal(puzzle);
+  const coreFound = countByLength(splitCore(play.found, puzzle).core);
+  const isCore = (w) => (puzzle.curated ? puzzle.curated.has(w) : isCommon(w, puzzle));
+  const core = puzzle.words.filter((w) => !found.has(w) && isCore(w) && (goal[w.length] || 0) > (coreFound[w.length] || 0));
+  if (core.length) return { words: core, bonus: false };
+  return { words: puzzle.words.filter((w) => !found.has(w)), bonus: true };
+}
+
+// The next hint for what is typed. Returns { text, message, noCost } or null when nothing fits.
+function pickHint(typed, pool) {
+  const words = pool.words;
+  const byAlpha = (a, b) => a.localeCompare(b);
+  const tag = (msg) => (pool.bonus ? `${msg} Bonus word.` : msg);
+
+  if (!typed) {
+    const target = words.slice().sort((a, b) => a.length - b.length || byAlpha(a, b))[0];
+    return { text: target[0], message: tag(`Hint: starts with ${target[0].toUpperCase()}.`), noCost: false };
+  }
+  if (words.includes(typed)) return { text: typed, message: "That word is right. Press Enter to submit.", noCost: true };
+
+  // Typed letters are all right so far: add the next letter of the alphabetically first word they start.
+  const ahead = words.filter((w) => w.startsWith(typed) && w.length > typed.length).sort(byAlpha);
+  if (ahead.length) {
+    const target = ahead[0];
+    const text = typed + target[typed.length];
+    const done = text === target ? " Press Enter to submit." : "";
+    return { text, message: tag(`Hint: next letter is ${target[typed.length].toUpperCase()}.${done}`), noCost: false };
+  }
+
+  // A wrong letter: aim at the word that agrees with the most typed letters, then fix its leftmost wrong letter.
+  const options = [];
+  for (const w of words) {
+    if (typed.startsWith(w)) continue;
+    let agree = 0;
+    let prefix = 0;
+    let same = true;
+    for (let i = 0; i < Math.min(w.length, typed.length); i++) {
+      if (w[i] === typed[i]) {
+        agree++;
+        if (same) prefix++;
+      } else {
+        same = false;
+      }
+    }
+    options.push({ w, agree, prefix });
+  }
+  if (!options.length) return null;
+  options.sort((a, b) => b.agree - a.agree || b.prefix - a.prefix || a.w.length - b.w.length || byAlpha(a.w, b.w));
+  const { w: target, prefix: at } = options[0];
+  const text = typed.slice(0, at) + target[at];
+  return { text, message: tag(`Hint: fixed to ${text.toUpperCase()}.`), noCost: false };
+}
+
 // Words left toward the goal, and words left by length (MIN_LENGTH up to the longest word).
 function progress(puzzle, play) {
   const total = countByLength(puzzle.words);
@@ -876,7 +938,7 @@ function render(puzzle, play) {
     el.bonuses.appendChild(li);
   }
 
-  el.score.textContent = result.total;
+  el.score.textContent = displayScore(play, puzzle);
 
   if (MODE === "hard") {
     el.count.textContent = play.found.length;
@@ -900,6 +962,8 @@ function render(puzzle, play) {
   el.input.disabled = over;
   el.button.disabled = over;
   el.finish.disabled = over;
+  const hintsLeft = over ? [] : hintPool(puzzle, play).words;
+  el.hint.disabled = over || hintsLeft.length === 0 || displayScore(play, puzzle) <= 0;
   renderDebug(puzzle, play);
   syncModeButtons();
   showTime();
@@ -1010,7 +1074,7 @@ function finish(date, puzzle, play) {
   const wasDone = play.done;
   play.done = true;
   const p = progress(puzzle, play);
-  play.score = scorePlay(play.found, puzzle).total;
+  play.score = displayScore(play, puzzle);
   play.rank = rankFor(p);
   play.goalMode = GOAL;
   play.goalTotal = p.goal;
@@ -1156,6 +1220,24 @@ function start(date, puzzle) {
     say(`${word} (${pointsForLength(word.length)}).${bonusText}${coreText}`);
 
     if (play.found.length === puzzle.words.length) finish(date, puzzle, play);
+  });
+
+  el.hint.addEventListener("click", () => {
+    const typed = el.input.value.trim().toLowerCase();
+    if (play.done || displayScore(play, puzzle) <= 0) return;
+    const pool = hintPool(puzzle, play);
+    if (!pool.words.length) return;
+    const pick = pickHint(typed, pool);
+    if (!pick) return say("No hint fits what's typed. Clear the box for a hint.", true);
+    el.input.value = pick.text;
+    renderSource(puzzle.source, pick.text);
+    if (!pick.noCost) {
+      play.hints = (play.hints || 0) + 1;
+      savePlay(date, play);
+      render(puzzle, play);
+    }
+    say(pick.message);
+    el.input.focus();
   });
 
   el.finish.addEventListener("click", () => finish(date, puzzle, play));
