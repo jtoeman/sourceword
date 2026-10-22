@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b38";
+const BUILD = "0.3.0-b39";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -643,6 +643,11 @@ function gridRows(puzzle, play) {
     // One emoji per core word, capped at CORE_CAP squares per row. Green = found, white = not yet.
     const foundN = Math.min(found[n] || 0, goalN);
     const squares = Math.min(CORE_CAP, goalN);
+    // A full 10 of 10 row is a crown, not ten green squares.
+    if (foundN === goalN && goalN === CORE_CAP) {
+      rows.push("👑");
+      continue;
+    }
     const filled = Math.round((foundN / goalN) * squares);
     rows.push("🟩".repeat(filled) + "⬜".repeat(squares - filled));
   }
@@ -847,9 +852,11 @@ function render(puzzle, play) {
   const { core, extra } = splitFound(play.found, puzzle);
 
   el.found.innerHTML = "";
+  const latest = play.found[play.found.length - 1]; // the most recent guess is highlighted green
   const sorted = core.slice().sort((a, b) => a.length - b.length || a.localeCompare(b));
   for (const w of sorted) {
     const li = document.createElement("li");
+    if (w === latest) li.classList.add("latest");
     li.textContent = `${w} (${pointsForLength(w.length)})`;
     el.found.appendChild(li);
   }
@@ -864,7 +871,7 @@ function render(puzzle, play) {
   const extraSorted = extra.slice().sort((a, b) => a.length - b.length || a.localeCompare(b));
   for (const w of extraSorted) {
     const li = document.createElement("li");
-    li.className = "filled";
+    li.className = w === latest ? "filled latest" : "filled";
     li.textContent = `${w} (${pointsForLength(w.length)})`;
     el.bonuses.appendChild(li);
   }
