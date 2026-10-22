@@ -28,21 +28,9 @@
       </div>
       <div class="titlebar">
         <h1>Sourceword</h1>
+        <button type="button" id="settings-btn" class="settings-btn" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></button>
       </div>
       <p class="source"><strong id="source"></strong></p>
-      <div class="mode-row">
-        <div class="mode-group">
-          <span class="mode-label">Mode</span>
-          <div class="goal" role="group" aria-label="Mode">
-            <button type="button" class="seg" id="mode-normal" aria-pressed="true">Normal</button>
-            <button type="button" class="seg" id="mode-hard" aria-pressed="false">Hard</button>
-          </div>
-        </div>
-        <div class="goal" role="group" aria-label="Goal">
-          <button type="button" class="seg" id="goal-all" aria-pressed="true">All words</button>
-          <button type="button" class="seg" id="goal-ten" aria-pressed="false">10 per length</button>
-        </div>
-      </div>
     </header>
 
     <section id="results" hidden>
@@ -77,9 +65,8 @@
       </div>
       <div class="found-head">
         <h2>Found <span id="count">0</span></h2>
-        <p class="countdown" id="countdown"></p>
+        <p class="lengths" id="lengths"></p>
       </div>
-      <p class="lengths" id="lengths"></p>
       <ul id="found" class="chips"></ul>
       <h2 id="bonus-head">Bonuses</h2>
       <ul id="bonuses" class="chips"></ul>
@@ -107,6 +94,28 @@
       </p>
       <div id="debug-words"></div>
     </section>
+
+    <dialog id="settings" class="howto" aria-labelledby="settings-title">
+      <div class="howto-head">
+        <h2 id="settings-title">Settings</h2>
+        <button type="button" id="settings-close" class="secondary">Close</button>
+      </div>
+      <div class="setting">
+        <span class="setting-label">Mode</span>
+        <div class="goal" role="group" aria-label="Mode">
+          <button type="button" class="seg" id="mode-normal" aria-pressed="true">Normal</button>
+          <button type="button" class="seg" id="mode-hard" aria-pressed="false">Hard</button>
+        </div>
+      </div>
+      <div class="setting">
+        <span class="setting-label">Goal</span>
+        <div class="goal" role="group" aria-label="Goal">
+          <button type="button" class="seg" id="goal-all" aria-pressed="true">All words</button>
+          <button type="button" class="seg" id="goal-ten" aria-pressed="false">10 per length</button>
+        </div>
+      </div>
+      <p class="muted">Your first word locks today's mode. Goal changes apply right away.</p>
+    </dialog>
 
     <dialog id="archive" class="howto" aria-labelledby="archive-title">
       <div class="howto-head">

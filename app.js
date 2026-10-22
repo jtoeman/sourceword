@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b36";
+const BUILD = "0.3.0-b37";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -123,7 +123,9 @@ const el = {
   debug: document.getElementById("debug"),
   debugSummary: document.getElementById("debug-summary"),
   debugWords: document.getElementById("debug-words"),
-  countdown: document.getElementById("countdown"),
+  settingsBtn: document.getElementById("settings-btn"),
+  settings: document.getElementById("settings"),
+  settingsClose: document.getElementById("settings-close"),
   rank: document.getElementById("rank"),
   statsBtn: document.getElementById("stats-btn"),
   stats: document.getElementById("stats"),
@@ -837,7 +839,7 @@ function render(puzzle, play) {
   const sorted = core.slice().sort((a, b) => a.length - b.length || a.localeCompare(b));
   for (const w of sorted) {
     const li = document.createElement("li");
-    li.textContent = `${w} (+${pointsForLength(w.length)})`;
+    li.textContent = `${w} (${pointsForLength(w.length)})`;
     el.found.appendChild(li);
   }
 
@@ -852,31 +854,26 @@ function render(puzzle, play) {
   for (const w of extraSorted) {
     const li = document.createElement("li");
     li.className = "filled";
-    li.textContent = `${w} (+${pointsForLength(w.length)})`;
+    li.textContent = `${w} (${pointsForLength(w.length)})`;
     el.bonuses.appendChild(li);
   }
 
   el.score.textContent = result.total;
-  el.count.textContent = play.found.length;
 
   if (MODE === "hard") {
-    el.countdown.hidden = true;
+    el.count.textContent = play.found.length;
     el.lengths.hidden = true;
     el.rank.hidden = true;
     el.bonuses.hidden = true;
     el.bonusHead.hidden = true;
   } else {
+    const p = progress(puzzle, play);
     el.bonuses.hidden = false;
     el.bonusHead.hidden = false;
-    const p = progress(puzzle, play);
-    el.rank.hidden = false;
-    el.rank.textContent = rankFor(p);
-    el.countdown.hidden = false;
-    if (GOAL === "ten") {
-      el.countdown.textContent = p.remaining > 0 ? `${p.remaining} core words left` : "Core complete";
-    } else {
-      el.countdown.textContent = `${p.remaining} words left`;
-    }
+    el.count.textContent = `${p.goal - p.remaining}/${p.goal}`;
+    const rank = rankFor(p);
+    el.rank.textContent = rank === LADDER[0].name ? "" : rank; // the starting rank is not shown
+    el.rank.hidden = !el.rank.textContent;
     el.lengths.hidden = false;
     el.lengths.textContent = p.text;
   }
@@ -1138,7 +1135,7 @@ function start(date, puzzle) {
     const coreText = !coreNow ? "" : GOAL === "ten"
       ? ` Core complete in ${fmtTime(play.coreMs)}. Bonus words still count.`
       : ` All core words found in ${fmtTime(play.coreMs)}.`;
-    say(`${word}: +${pointsForLength(word.length)}.${bonusText}${coreText}`);
+    say(`${word} (${pointsForLength(word.length)}).${bonusText}${coreText}`);
 
     if (play.found.length === puzzle.words.length) finish(date, puzzle, play);
   });
@@ -1311,6 +1308,11 @@ el.archiveBtn.addEventListener("click", () => {
 el.archiveClose.addEventListener("click", () => el.archive.close());
 
 el.howtoBtn.addEventListener("click", openHowto);
+el.settingsBtn.addEventListener("click", () => {
+  if (typeof el.settings.showModal === "function") el.settings.showModal();
+  else el.settings.setAttribute("open", "");
+});
+el.settingsClose.addEventListener("click", () => el.settings.close());
 el.howtoClose.addEventListener("click", () => el.howto.close());
 el.howtoBack.addEventListener("click", () => {
   howtoStep = Math.max(0, howtoStep - 1);
