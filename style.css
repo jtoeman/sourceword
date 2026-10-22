@@ -325,6 +325,11 @@ button.secondary {
   margin: 0.75rem 0;
 }
 
+.setting .goal .seg[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--bg);
+}
+
 .setting-label {
   font-size: 0.75rem;
   font-weight: 700;
