@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b37";
+const BUILD = "0.3.0-b38";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -304,9 +304,16 @@ function parseCore(raw) {
 
 // Sheet columns by position: Date, Source Word, Valid Words, Status, Notes, Subwords, Band.
 // Rows are skipped if the date or word is unusable, or the status is "draft".
+// fetch with a time limit, so a stalled request fails and falls back instead of leaving the page blank.
+function fetchWithTimeout(url, opts = {}, ms = 10000) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), ms);
+  return fetch(url, { ...opts, signal: ctl.signal }).finally(() => clearTimeout(timer));
+}
+
 async function loadSheetEntries() {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_TAB)}`;
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetchWithTimeout(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`sheet: HTTP ${res.status}`);
   const rows = parseCsv(await res.text()).slice(1);
   const out = {};
@@ -338,8 +345,12 @@ async function loadFallbackEntries() {
 async function loadEntries() {
   try {
     return await loadSheetEntries();
-  } catch (err) {
-    console.warn("Sourceword: sheet unavailable, using puzzles.json:", err);
+  } catch (firstErr) {
+    try {
+      return await loadSheetEntries(); // one retry before falling back
+    } catch (err) {
+      console.warn("Sourceword: sheet unavailable, using puzzles.json:", err);
+    }
     return loadFallbackEntries();
   }
 }
@@ -359,7 +370,7 @@ function pickDate(valid, today) {
 // Checking list (common words, see README): every guess must be in it.
 async function loadWords() {
   if (window.WORD_DATA) return window.WORD_DATA;
-  const res = await fetch("words.json", { cache: "force-cache" });
+  const res = await fetchWithTimeout("words.json", { cache: "force-cache" });
   if (!res.ok) throw new Error(`words.json: HTTP ${res.status}`);
   return res.json();
 }
@@ -367,7 +378,7 @@ async function loadWords() {
 // Common words (Zipf 3.0+), built by tools/build_common.py. If it can't load, every word counts as common.
 async function loadCommon() {
   try {
-    const res = await fetch("common.json", { cache: "force-cache" });
+    const res = await fetchWithTimeout("common.json", { cache: "force-cache" });
     if (!res.ok) throw new Error(`common.json: HTTP ${res.status}`);
     return new Set(await res.json());
   } catch (err) {
@@ -379,7 +390,7 @@ async function loadCommon() {
 // Blocked words (blocked.json). If it can't load, the game still runs with no blocked words.
 async function loadBlocked() {
   try {
-    const res = await fetch("blocked.json", { cache: "force-cache" });
+    const res = await fetchWithTimeout("blocked.json", { cache: "force-cache" });
     if (!res.ok) throw new Error(`blocked.json: HTTP ${res.status}`);
     return new Set((await res.json()).map((w) => String(w).toLowerCase()));
   } catch (err) {
@@ -846,7 +857,7 @@ function render(puzzle, play) {
   el.bonuses.innerHTML = "";
   for (const s of result.slots) {
     const li = document.createElement("li");
-    li.textContent = `${s.label} +${s.points}`;
+    li.textContent = `${s.label} (${s.points})`;
     if (s.filled) li.className = "filled";
     el.bonuses.appendChild(li);
   }
@@ -1131,7 +1142,7 @@ function start(date, puzzle) {
     showToasts(won);
 
     const earned = result.earned.filter((s) => !before.has(s.id));
-    const bonusText = earned.map((s) => ` ${s.label} +${s.points}.`).join("");
+    const bonusText = earned.map((s) => ` ${s.label} (${s.points}).`).join("");
     const coreText = !coreNow ? "" : GOAL === "ten"
       ? ` Core complete in ${fmtTime(play.coreMs)}. Bonus words still count.`
       : ` All core words found in ${fmtTime(play.coreMs)}.`;
