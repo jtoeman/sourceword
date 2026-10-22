@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b34";
+const BUILD = "0.3.0-b36";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -129,6 +129,9 @@ const el = {
   stats: document.getElementById("stats"),
   statPlayed: document.getElementById("stat-played"),
   statStreak: document.getElementById("stat-streak"),
+  achList: document.getElementById("ach-list"),
+  achEmpty: document.getElementById("ach-empty"),
+  toasts: document.getElementById("toasts"),
   statBest: document.getElementById("stat-best"),
   statBestScore: document.getElementById("stat-best-score"),
   results: document.getElementById("results"),
@@ -651,6 +654,7 @@ function renderStats(date) {
   el.statStreak.textContent = s.current;
   el.statBest.textContent = s.best;
   el.statBestScore.textContent = days.reduce((m, d) => Math.max(m, d.score || 0), 0);
+  renderAchievements();
 
 }
 
@@ -887,6 +891,106 @@ function render(puzzle, play) {
   return result;
 }
 
+// Hub "played today" mark (kit at /kit/froobaloo.js). A finished day counts, win or lose.
+function markHubPlayed() {
+  try {
+    if (window.Froobaloo) window.Froobaloo.markPlayed("sourceword");
+  } catch (err) {
+    console.warn("Sourceword: hub played mark unavailable.", err);
+  }
+}
+
+// Achievements. Each test reads the day's puzzle and play. Earned ones are kept on the day's play
+// (so they don't repeat) and in a per-device list shown under Stats.
+const ACH_KEY = "sourceword:achievements";
+const QUICK_CORE_MS = 3 * 60 * 1000;
+
+// Every achievement with whether it is met. Length achievements are built per puzzle.
+// streakNow is the current streak when the day is finished, or null otherwise.
+function achievementList(puzzle, play, streakNow) {
+  const found = play.found;
+  const slots = bonusSlots(puzzle, found);
+  const p = progress(puzzle, play);
+  const list = [
+    { id: "first_word", name: "First word", desc: "Find your first word of the day.", ok: found.length >= 1 },
+    { id: "core_complete", name: "Core complete", desc: "Find every core word.", ok: Boolean(play.coreDone) },
+    { id: "full_board", name: "Full board", desc: "Find every word in the puzzle.", ok: found.length === puzzle.words.length },
+    { id: "perfect_reuse", name: "Perfect reuse", desc: "Make a word from every letter of the source word.", ok: slots.some((s) => s.label === "perfect reuse" && s.filled) },
+    { id: "first_bonus", name: "First bonus", desc: "Fill your first bonus slot.", ok: slots.some((s) => s.filled) },
+    { id: "halfway", name: "Halfway", desc: "Reach half of today's goal.", ok: p.goal > 0 && p.goal - p.remaining >= p.goal / 2 },
+    { id: "quick_core", name: "Quick core", desc: "Find every core word in under 3 minutes.", ok: Boolean(play.coreDone) && (play.coreMs || 0) < QUICK_CORE_MS },
+  ];
+  const total = countByLength(puzzle.words);
+  const foundBy = countByLength(found);
+  for (const n of Object.keys(total).map(Number).sort((a, b) => a - b)) {
+    if (n < MIN_LENGTH) continue;
+    list.push({ id: `len:${n}`, name: `All ${n}-letter words`, desc: `Find every ${n}-letter word in the puzzle.`, ok: (foundBy[n] || 0) >= total[n] });
+  }
+  if (streakNow !== null) {
+    list.push({ id: "streak_3", name: "Three in a row", desc: "Finish three days in a row.", ok: streakNow >= 3 });
+    list.push({ id: "streak_7", name: "Week streak", desc: "Finish seven days in a row.", ok: streakNow >= 7 });
+  }
+  return list;
+}
+
+// Marks newly met achievements on the play and returns them. Call before saving the play.
+function newAchievements(date, puzzle, play, checkStreak) {
+  const streakNow = checkStreak ? streaks(playedDays(), date).current : null;
+  const got = achievementList(puzzle, play, streakNow).filter((a) => a.ok && !(play.achievements || []).includes(a.id));
+  if (!got.length) return got;
+  play.achievements = [...(play.achievements || []), ...got.map((a) => a.id)];
+  recordAchievements(got, date);
+  return got;
+}
+
+function recordAchievements(got, date) {
+  try {
+    const all = JSON.parse(localStorage.getItem(ACH_KEY)) || {};
+    for (const a of got) if (!all[a.id]) all[a.id] = { name: a.name, desc: a.desc, date };
+    localStorage.setItem(ACH_KEY, JSON.stringify(all));
+  } catch {
+    // Storage blocked: the toast still shows, the Stats list just stays empty.
+  }
+}
+
+// Short notices at the top of the page. Tap to dismiss; they also fade after a few seconds.
+function showToasts(got) {
+  for (const a of got) {
+    const t = document.createElement("div");
+    t.className = "toast";
+    t.setAttribute("role", "status");
+    const title = document.createElement("strong");
+    title.textContent = `Achievement: ${a.name}`;
+    const detail = document.createElement("span");
+    detail.textContent = a.desc;
+    t.append(title, detail);
+    t.addEventListener("click", () => t.remove());
+    el.toasts.appendChild(t);
+    setTimeout(() => t.remove(), 4500);
+  }
+}
+
+function renderAchievements() {
+  let all = {};
+  try {
+    all = JSON.parse(localStorage.getItem(ACH_KEY)) || {};
+  } catch {
+    all = {};
+  }
+  const rows = Object.values(all).sort((a, b) => b.date.localeCompare(a.date));
+  el.achList.innerHTML = "";
+  for (const a of rows) {
+    const li = document.createElement("li");
+    const name = document.createElement("strong");
+    name.textContent = a.name;
+    const meta = document.createElement("span");
+    meta.textContent = ` ${a.desc} (${a.date})`;
+    li.append(name, meta);
+    el.achList.appendChild(li);
+  }
+  el.achEmpty.hidden = rows.length > 0;
+}
+
 function finish(date, puzzle, play) {
   const wasDone = play.done;
   play.done = true;
@@ -899,7 +1003,11 @@ function finish(date, puzzle, play) {
   play.grid = gridRows(puzzle, play);
   checkCore(play, puzzle);
   savePlay(date, play);
+  const won = newAchievements(date, puzzle, play, date === todayET());
+  savePlay(date, play);
+  markHubPlayed();
   render(puzzle, play);
+  showToasts(won);
   say(`Done. ${play.found.length} of ${puzzle.words.length} found. Score ${play.score}.`);
   renderStats(date);
   renderResults(date);
@@ -995,6 +1103,7 @@ function start(date, puzzle) {
   render(puzzle, play);
 
   if (play.done) {
+    markHubPlayed();
     say("You've already played this puzzle.");
     renderResults(date);
     return;
@@ -1020,6 +1129,9 @@ function start(date, puzzle) {
     const coreNow = checkCore(play, puzzle);
     savePlay(date, play);
     const result = render(puzzle, play);
+    const won = newAchievements(date, puzzle, play, false);
+    savePlay(date, play);
+    showToasts(won);
 
     const earned = result.earned.filter((s) => !before.has(s.id));
     const bonusText = earned.map((s) => ` ${s.label} +${s.points}.`).join("");
