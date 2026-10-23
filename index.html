@@ -38,8 +38,8 @@
       </div>
       <p class="result-line" id="res-core"></p>
       <p class="result-line" id="res-time"></p>
-      <button type="button" id="share-btn" class="share-btn">Share spoiler-free result</button>
       <a id="next-game" class="next-game" href="https://froobaloo.com/wordsummit/">Next game: Wordsummit →</a>
+      <button type="button" id="share-btn" class="share-btn">Share spoiler-free result</button>
       <p class="share-actions"><span id="share-note" class="muted-note" aria-live="polite"></span></p>
       <pre id="share-text" class="share"></pre>
     </section>
@@ -51,16 +51,27 @@
         <input id="guess" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" autofocus aria-label="Your word" placeholder="Type a word">
       </div>
       <button type="submit">Enter</button>
-      <button type="button" id="hint" class="secondary">Hint (-1)</button>
-      <button type="button" id="finish" class="secondary">I'm done</button>
+      <button type="button" id="hint" class="secondary" data-tip="Reveal the next letter at the cost of 1 point!">Hint (-1)</button>
+      <button type="button" id="finish" class="secondary tip-end" data-tip="Clicking done will end your day with your current points total!">I'm done</button>
     </form>
 
-    <p id="message" role="status" aria-live="polite"></p>
-    <div id="toasts" class="toasts" aria-live="polite"></div>
     <div id="tip" class="tip" role="status" hidden>
       <p id="tip-text"></p>
       <button type="button" id="tip-ok">Got it</button>
     </div>
+    <p id="message" role="status" aria-live="polite"></p>
+    <div id="toasts" class="toasts" aria-live="polite"></div>
+
+    <dialog id="done-confirm" class="howto" aria-labelledby="done-title">
+      <div class="howto-head">
+        <h2 id="done-title">End your day?</h2>
+      </div>
+      <p id="done-text"></p>
+      <div class="howto-nav">
+        <button type="button" id="done-cancel" class="secondary">Keep playing</button>
+        <button type="button" id="done-ok">End day</button>
+      </div>
+    </dialog>
 
     <section>
       <div class="score-row">

@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b42";
+const BUILD = "0.3.0-b43";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -119,6 +119,10 @@ const el = {
   bonuses: document.getElementById("bonuses"),
   source: document.getElementById("source"),
   finish: document.getElementById("finish"),
+  doneConfirm: document.getElementById("done-confirm"),
+  doneText: document.getElementById("done-text"),
+  doneCancel: document.getElementById("done-cancel"),
+  doneOk: document.getElementById("done-ok"),
   build: document.getElementById("build"),
   date: document.getElementById("date"),
   debug: document.getElementById("debug"),
@@ -922,9 +926,22 @@ function progress(puzzle, play) {
     const left = goalN - foundN;
     remaining += left;
     goal += goalN;
-    perLength.push(`${n} (${left})`);
+    perLength.push(`${n}-letter (${left})`);
   }
   return { remaining, goal, text: perLength.join(", ") };
+}
+
+// What a bonus slot asks for, shown as a tooltip.
+function bonusTip(label) {
+  if (label === "all letters") return "Find a word that uses every letter of the source word. Counts once per day.";
+  if (label === "perfect reuse") return "Find an anagram of the source word, using every letter the same number of times.";
+  if (label === "core complete") return GOAL === "ten" ? "Find every core word." : "Find every word.";
+  if (label === "all words") return "Find every word.";
+  const core = label.match(/^(\d+)-letter core$/);
+  if (core) return `Find every core ${core[1]}-letter word.`;
+  const all = label.match(/^all (\d+)-letter words$/);
+  if (all) return `Find every ${all[1]}-letter word.`;
+  return "Bonus.";
 }
 
 function render(puzzle, play) {
@@ -941,19 +958,30 @@ function render(puzzle, play) {
     li.textContent = `${w} (${pointsForLength(w.length)})`;
     el.found.appendChild(li);
   }
+  // Once the day is over, the words not found are shown in italics.
+  if (play.done) {
+    const missed = puzzle.words.filter((w) => !play.found.includes(w)).sort((a, b) => a.length - b.length || a.localeCompare(b));
+    for (const w of missed) {
+      const li = document.createElement("li");
+      li.className = "missed";
+      li.textContent = `${w} (${pointsForLength(w.length)})`;
+      el.found.appendChild(li);
+    }
+  }
 
   el.bonuses.innerHTML = "";
   // Completed bonuses first (slots, then extra bonus words), open slots last.
-  const addBonus = (text, cls) => {
+  const addBonus = (text, cls, tip) => {
     const li = document.createElement("li");
     li.textContent = text;
     if (cls) li.className = cls;
+    if (tip) li.dataset.tip = tip;
     el.bonuses.appendChild(li);
   };
-  for (const s of result.slots) if (s.filled) addBonus(`${s.label} (${s.points})`, "filled");
+  for (const s of result.slots) if (s.filled) addBonus(`${s.label} (${s.points})`, "filled", bonusTip(s.label));
   const extraSorted = extra.slice().sort((a, b) => a.length - b.length || a.localeCompare(b));
-  for (const w of extraSorted) addBonus(`${w} (${pointsForLength(w.length)})`, w === latest ? "filled latest" : "filled");
-  for (const s of result.slots) if (!s.filled) addBonus(`${s.label} (${s.points})`, "");
+  for (const w of extraSorted) addBonus(`${w} (${pointsForLength(w.length)})`, w === latest ? "filled latest" : "filled", "Extra word: any valid word of 4 letters or more counts toward your score.");
+  for (const s of result.slots) if (!s.filled) addBonus(`${s.label} (${s.points})`, "", bonusTip(s.label));
 
   el.score.textContent = displayScore(play, puzzle);
 
@@ -1268,7 +1296,24 @@ function start(date, puzzle) {
     el.input.focus();
   });
 
-  el.finish.addEventListener("click", () => finish(date, puzzle, play));
+  // "I'm done" asks first, and says what is still to find.
+  el.finish.addEventListener("click", () => {
+    const left = puzzle.words.length - play.found.length;
+    if (left <= 0) return finish(date, puzzle, play);
+    const coreLeftNow = GOAL === "ten" ? coreLeft(puzzle, play) : 0;
+    const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+    const hintLine = coreLeftNow > 0 ? " You can still use hints to find them." : "";
+    el.doneText.textContent = coreLeftNow > 0
+      ? `${plural(coreLeftNow, "core word")} still to find, and ${plural(left, "word")} left in all.${hintLine} Ending now shows your current score and reveals the words you missed.`
+      : `${plural(left, "word")} left to find. Ending now shows your current score and reveals the words you missed.`;
+    if (typeof el.doneConfirm.showModal === "function") el.doneConfirm.showModal();
+    else el.doneConfirm.setAttribute("open", "");
+  });
+  el.doneCancel.addEventListener("click", () => el.doneConfirm.close());
+  el.doneOk.addEventListener("click", () => {
+    el.doneConfirm.close();
+    finish(date, puzzle, play);
+  });
   el.input.focus();
 }
 
