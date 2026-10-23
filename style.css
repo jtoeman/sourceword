@@ -131,9 +131,14 @@ h2 {
 }
 
 form {
-  display: flex;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
   margin: 0.9rem 0 0.25rem;
+}
+
+form input {
+  grid-column: 1 / -1;
 }
 
 input {
@@ -171,6 +176,7 @@ button {
 
 form button {
   flex: none;
+  padding: 0.4rem 0.5rem;
 }
 
 button:focus-visible {

@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b40";
+const BUILD = "0.3.0-b41";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -951,9 +951,8 @@ function render(puzzle, play) {
     el.bonuses.hidden = false;
     el.bonusHead.hidden = false;
     el.count.textContent = `${p.goal - p.remaining}/${p.goal}`;
-    const rank = rankFor(p);
-    el.rank.textContent = rank === LADDER[0].name ? "" : rank; // the starting rank is not shown
-    el.rank.hidden = !el.rank.textContent;
+    el.rank.textContent = ""; // milestone copy is off the game screen for now (results still show it)
+    el.rank.hidden = true;
     el.lengths.hidden = false;
     el.lengths.textContent = p.text;
   }
