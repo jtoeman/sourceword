@@ -1446,7 +1446,7 @@ async function init() {
   const today = todayET();
   document.title = `Sourceword (${BUILD})`;
   el.date.dataset.day = today;
-  el.date.textContent = today;
+  el.date.textContent = shortDate(today);
   try {
     const [rawWords, common, blocked] = await Promise.all([loadWords(), loadCommon(), loadBlocked()]);
     COMMON = common;
@@ -1476,7 +1476,7 @@ async function init() {
       return say(`No puzzle for ${today}.`, true);
     }
     el.date.dataset.day = date;
-    el.date.textContent = date === today ? today : `${date} · archive`;
+    el.date.textContent = date === today ? shortDate(today) : `${shortDate(date)} · archive`;
     const puzzle = { source: valid[date].source, core: valid[date].core || [], common: COMMON };
     // Mode for the day: the locked one if the day has play, else the preference.
     const saved = loadPlay(date);

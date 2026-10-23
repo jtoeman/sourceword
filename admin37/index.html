@@ -20,16 +20,13 @@
 <body>
   <main>
     <header>
-      <div class="top">
-        <span id="date" class="date"></span>
-        <span class="top-right">
-          <button type="button" id="stats-btn" class="secondary admin-toggle">Stats</button>
-          <span class="build" id="build"></span>
-        </span>
-      </div>
       <div class="titlebar">
         <h1>Sourceword</h1>
-        <button type="button" id="settings-btn" class="settings-btn" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></button>
+        <span class="top-right">
+          <span id="date" class="date"></span>
+          <button type="button" id="stats-btn" class="settings-btn" aria-label="Stats" title="Stats"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 21h16M7 17v-5M12 17V6M17 17v-8"/></svg></button>
+          <button type="button" id="settings-btn" class="settings-btn" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></button>
+        </span>
       </div>
       <p class="source"><strong id="source"></strong></p>
     </header>
@@ -143,6 +140,7 @@
 
     <footer>
       <a class="brand" href="https://froobaloo.com/"><img class="brand-mark" src="froobaloo-mark.svg" alt="" width="20" height="20">froobaloo</a>
+      <span class="build" id="build"></span>
       <span class="footer-right">
         <button type="button" id="archive-btn" class="secondary admin-toggle">Archive</button>
         <button type="button" id="howto-btn" class="secondary admin-toggle">How to play</button>
