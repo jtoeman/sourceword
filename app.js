@@ -941,19 +941,17 @@ function render(puzzle, play) {
   }
 
   el.bonuses.innerHTML = "";
-  for (const s of result.slots) {
+  // Completed bonuses first (slots, then extra bonus words), open slots last.
+  const addBonus = (text, cls) => {
     const li = document.createElement("li");
-    li.textContent = `${s.label} (${s.points})`;
-    if (s.filled) li.className = "filled";
+    li.textContent = text;
+    if (cls) li.className = cls;
     el.bonuses.appendChild(li);
-  }
+  };
+  for (const s of result.slots) if (s.filled) addBonus(`${s.label} (${s.points})`, "filled");
   const extraSorted = extra.slice().sort((a, b) => a.length - b.length || a.localeCompare(b));
-  for (const w of extraSorted) {
-    const li = document.createElement("li");
-    li.className = w === latest ? "filled latest" : "filled";
-    li.textContent = `${w} (${pointsForLength(w.length)})`;
-    el.bonuses.appendChild(li);
-  }
+  for (const w of extraSorted) addBonus(`${w} (${pointsForLength(w.length)})`, w === latest ? "filled latest" : "filled");
+  for (const s of result.slots) if (!s.filled) addBonus(`${s.label} (${s.points})`, "");
 
   el.score.textContent = displayScore(play, puzzle);
 
