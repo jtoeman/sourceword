@@ -1,7 +1,7 @@
 // Sourceword, build 0.3.0-b27
 // Scoring: base by length (Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11), 4-letter minimum.
 // Bonus slots, each worth the points of one word of that length:
-//   - all letters: a valid word using every distinct source letter (one slot per such word)
+//   - all letters: a valid word using every distinct source letter (one bonus per day, worth the lowest-valued such word)
 //   - perfect reuse: an anagram of the source word (one slot per such word)
 //   - length: every word of one length found ("all" goal) or that length's core found ("ten" goal)
 //   - all words: every word found ("all" goal) or the core complete ("ten" goal), valued at the source length
@@ -460,6 +460,11 @@ function bonusSlots(puzzle, found) {
   ];
   for (const { kind, label, qual } of perWord) {
     const points = qual.map((w) => pointsForLength(w.length)).sort((a, b) => a - b);
+    if (kind === "all") {
+      // Once per day: one bonus, worth the lowest-valued qualifying word, earned by finding any of them.
+      if (points.length) slots.push({ id: "all:0", label, points: points[0], filled: found.some((w) => qual.includes(w)) });
+      continue;
+    }
     const earned = found.filter((w) => qual.includes(w)).map((w) => pointsForLength(w.length));
     const filled = fillSlots(points, earned.sort((a, b) => a - b));
     points.forEach((p, i) => slots.push({ id: `${kind}:${i}`, label, points: p, filled: filled[i] }));
