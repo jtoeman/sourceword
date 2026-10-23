@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b43";
+const BUILD = "0.3.0-b44";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -158,6 +158,8 @@ const el = {
   archive: document.getElementById("archive"),
   archiveList: document.getElementById("archive-list"),
   archiveClose: document.getElementById("archive-close"),
+  welcome: document.getElementById("welcome"),
+  welcomeOk: document.getElementById("welcome-ok"),
   shareNote: document.getElementById("share-note"),
   lengths: document.getElementById("lengths"),
   reveal: document.getElementById("reveal"),
@@ -1366,6 +1368,27 @@ function nextTip() {
   el.tip.hidden = false;
 }
 
+// First visit only: a short welcome. Marked seen when it closes, however it closes.
+const WELCOME_KEY = "sourceword:welcome-seen";
+function showWelcome() {
+  try {
+    if (localStorage.getItem(WELCOME_KEY) === "1") return;
+  } catch {
+    // Storage blocked: the welcome shows on each load.
+  }
+  const mark = () => {
+    try {
+      localStorage.setItem(WELCOME_KEY, "1");
+    } catch {
+      // Storage blocked: nothing to save.
+    }
+  };
+  el.welcome.addEventListener("close", mark, { once: true });
+  el.welcomeOk.addEventListener("click", () => el.welcome.close(), { once: true });
+  if (typeof el.welcome.showModal === "function") el.welcome.showModal();
+  else el.welcome.setAttribute("open", "");
+}
+
 el.tipOk.addEventListener("click", () => {
   if (tipShowing) markTipSeen(tipShowing);
   nextTip();
@@ -1498,6 +1521,7 @@ async function init() {
     if (dropped.length) console.warn(`Sourceword: curated core words not valid for ${date}: ${dropped.join(", ")}`);
     puzzle.curated = curated.size ? curated : null;
     start(date, puzzle);
+    showWelcome();
   } catch (err) {
     say("Couldn't load today's puzzle.", true);
     console.error(err);
