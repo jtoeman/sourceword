@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b41";
+const BUILD = "0.3.0-b42";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -657,10 +657,12 @@ function gridRows(puzzle, play) {
 
 // Spoiler-free, in the Caseboard share style: a header, one emoji row per word length, the link.
 function shareTextFor(date, play) {
+  const word = SOURCES[date] || play.source;
   const [y, m, d] = date.split("-").map(Number);
   const modeName = play.mode && play.mode !== "normal" ? ` · ${play.mode[0].toUpperCase()}${play.mode.slice(1)}` : "";
   return [
     `Sourceword · ${m}/${d}${modeName} · score ${play.score}`,
+    ...(word ? [`Word: ${word.toUpperCase()}`] : []),
     ...(play.grid || []),
     SITE_URL,
   ].join("\n");
@@ -708,10 +710,24 @@ function currentDay() {
   return el.date.dataset.day;
 }
 
-// Copies the spoiler-free result. Falls back to selecting the text where clipboard access is blocked.
+// Opens the share sheet with the result text (iOS/Android). Falls back to copying where sharing is unavailable.
 el.shareBtn.addEventListener("click", async () => {
   const text = el.shareText.textContent;
   track("Share Result", { date: currentDay(), mode: MODE, goal: GOAL });
+  if (navigator.share) {
+    try {
+      await navigator.share({ text, title: "Sourceword" });
+      el.shareNote.textContent = "";
+    } catch (err) {
+      if (err && err.name !== "AbortError") await copyResult(text);
+    }
+    return;
+  }
+  await copyResult(text);
+});
+
+// Copies the result. Falls back to selecting the text where clipboard access is blocked.
+async function copyResult(text) {
   try {
     await navigator.clipboard.writeText(text);
     el.shareNote.textContent = "Copied. Paste it anywhere.";
@@ -723,7 +739,8 @@ el.shareBtn.addEventListener("click", async () => {
     sel.addRange(range);
     el.shareNote.textContent = "Select and copy the text below.";
   }
-});
+}
+
 function say(text, isBad = false) {
   el.message.textContent = text;
   el.message.classList.toggle("bad", isBad);
@@ -1079,6 +1096,7 @@ function finish(date, puzzle, play) {
   play.goalTotal = p.goal;
   play.goalFound = p.goal - p.remaining;
   play.grid = gridRows(puzzle, play);
+  play.source = puzzle.source;
   checkCore(play, puzzle);
   savePlay(date, play);
   const won = newAchievements(date, puzzle, play, date === todayET());
@@ -1358,6 +1376,7 @@ function showHowtoOnFirstVisit() {
 
 // Archive: past puzzles from the sheet. Each opens with ?day=YYYY-MM-DD.
 let ARCHIVE = [];
+let SOURCES = {}; // date -> source word, for every day in the puzzle data (share text uses it)
 
 function shortDate(date) {
   const [, m, d] = date.split("-").map(Number);
@@ -1443,6 +1462,7 @@ async function init() {
     // ?day=YYYY-MM-DD opens an archive day, if it is a valid past day.
     const requested = new URLSearchParams(location.search).get("day");
     const date = requested && valid[requested] && requested <= today ? requested : pickDate(valid, today);
+    SOURCES = Object.fromEntries(Object.entries(valid).map(([d, e]) => [d, e.source]));
     ARCHIVE = Object.keys(valid)
       .filter((d) => d < today)
       .sort()
