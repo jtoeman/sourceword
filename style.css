@@ -127,6 +127,91 @@ h2 {
   color: var(--fg);
 }
 
+/* The word box: a transparent input over a mirror that paints letters not in the source word red. */
+.guess-field {
+  grid-column: 1 / -1;
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.guess-field:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.guess-field:has(input:disabled) {
+  opacity: 0.5;
+}
+
+.guess-field input {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--fg);
+  font-family: inherit;
+}
+
+.guess-mirror {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0.6rem 0.8rem;
+  font-size: 1.25rem;
+  font-family: inherit;
+  white-space: pre;
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--fg);
+  text-transform: lowercase;
+}
+
+.guess-mirror span.bad {
+  color: var(--bad);
+}
+
+/* Step tip: one at a time, fixed above the bottom edge. */
+.tip {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  max-width: 520px;
+  margin: 0 auto;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.tip[hidden] {
+  display: none;
+}
+
+.tip p {
+  margin: 0;
+  flex: 1;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.tip button {
+  flex: none;
+}
+
 form {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

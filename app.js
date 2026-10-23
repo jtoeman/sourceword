@@ -143,13 +143,10 @@ const el = {
   resCore: document.getElementById("res-core"),
   resTime: document.getElementById("res-time"),
   timer: document.getElementById("timer"),
-  howtoBtn: document.getElementById("howto-btn"),
-  howto: document.getElementById("howto"),
-  howtoBody: document.getElementById("howto-body"),
-  howtoBack: document.getElementById("howto-back"),
-  howtoNext: document.getElementById("howto-next"),
-  howtoDots: document.getElementById("howto-dots"),
-  howtoClose: document.getElementById("howto-close"),
+  guessMirror: document.getElementById("guess-mirror"),
+  tip: document.getElementById("tip"),
+  tipText: document.getElementById("tip-text"),
+  tipOk: document.getElementById("tip-ok"),
   shareText: document.getElementById("share-text"),
   shareBtn: document.getElementById("share-btn"),
   nextGame: document.getElementById("next-game"),
@@ -1197,8 +1194,14 @@ function start(date, puzzle) {
     track("Puzzle Started", { date, mode: play.mode, goal: GOAL });
   }
   renderSource(puzzle.source, "");
-  el.input.addEventListener("input", () => renderSource(puzzle.source, el.input.value));
+  guessSource = puzzle.source;
+  paintGuess();
+  el.input.addEventListener("input", () => {
+    renderSource(puzzle.source, el.input.value);
+    paintGuess();
+  });
   timed = { date, play };
+  if (!play.done) queueTip("source");
   render(puzzle, play);
 
   if (play.done) {
@@ -1214,6 +1217,7 @@ function start(date, puzzle) {
     const word = el.input.value.trim().toLowerCase();
     el.input.value = "";
     renderSource(puzzle.source, "");
+    paintGuess();
 
     if (word.length < MIN_LENGTH) return say(`Too short. ${MIN_LENGTH} letters minimum.`, true);
     if (!/^[a-z]+$/.test(word)) return say("Letters only.", true);
@@ -1238,6 +1242,9 @@ function start(date, puzzle) {
       ? ` Core complete in ${fmtTime(play.coreMs)}. Bonus words still count.`
       : ` All core words found in ${fmtTime(play.coreMs)}.`;
     say(`${word} (${pointsForLength(word.length)}).${bonusText}${coreText}`);
+    queueTip("score");
+    queueTip("hint");
+    if (earned.length) queueTip("bonus");
 
     if (play.found.length === puzzle.words.length) finish(date, puzzle, play);
   });
@@ -1251,6 +1258,7 @@ function start(date, puzzle) {
     if (!pick) return say("No hint fits what's typed. Clear the box for a hint.", true);
     el.input.value = pick.text;
     renderSource(puzzle.source, pick.text);
+    paintGuess();
     if (!pick.noCost) {
       play.hints = (play.hints || 0) + 1;
       savePlay(date, play);
@@ -1264,117 +1272,78 @@ function start(date, puzzle) {
   el.input.focus();
 }
 
-// How to play: a short walkthrough. Opens on first visit and from the footer button.
-const HOWTO_KEY = "sourceword:howto-seen";
-const HOWTO_SAMPLE = "garden";
-let howtoStep = 0;
-let howtoWords = null;
-let howtoFound = [];
+// Tips: short notes that appear the first time the moment comes up, one at a time. Seen tips are remembered per browser.
+const TIPS_KEY = "sourceword:tips-seen";
+const TIP_TEXT = {
+  source: "Today's source word is the big word at the top. Build words from its letters.",
+  letter: "Red letters aren't in the source word. Each letter can be used only as many times as it appears in it.",
+  score: "Longer words score more. Found words are listed under Found, with their points.",
+  hint: "Stuck? Hint (-1) fills in the next letter of a word you haven't found. Each hint costs a point.",
+  bonus: "Bonuses are extra points. They're listed under Bonuses Found, and each one fills once.",
+};
+let tipQueue = [];
+let tipShowing = null;
 
-// Letter tiles for a word. Letters the typed text uses are greyed out, like the live source word.
-function tiles(word, typed = "") {
-  const avail = letterCounts(typed.toLowerCase().replace(/[^a-z]/g, ""));
-  return `<div class="tiles" id="ex-tiles">${[...word].map((c) => {
-    const used = avail[c] > 0;
-    if (used) avail[c]--;
-    return `<span class="tile-letter${used ? " used" : ""}">${c}</span>`;
-  }).join("")}</div>`;
-}
-
-const HOWTO_BODY = [
-  `<p>Each day has one <strong>source word</strong>. Build as many words as you can from its letters.</p>
-   ${tiles(HOWTO_SAMPLE)}
-   <p class="muted">Today's source word is at the top of the game.</p>`,
-  `<p>Each letter can be used only as many times as it appears in the source word.</p>
-   ${tiles(HOWTO_SAMPLE)}
-   <p>Try one of these: <strong>dare</strong>, <strong>gear</strong>, or <strong>anger</strong>.</p>
-   <form id="ex-form" autocomplete="off">
-     <input id="ex-input" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Example word" placeholder="Type a word">
-     <button type="submit">Enter</button>
-   </form>
-   <p id="ex-msg" class="ex-msg" role="status"></p>`,
-  `<p>Words score by length:</p>
-   <table class="score-table">
-     <tr><td>4 letters</td><td>1 point</td></tr>
-     <tr><td>5 letters</td><td>2 points</td></tr>
-     <tr><td>6 letters</td><td>3 points</td></tr>
-     <tr><td>7 letters</td><td>5 points</td></tr>
-     <tr><td>8+ letters</td><td>11 points</td></tr>
-   </table>`,
-  `<p><strong>10 per length</strong> is the default goal. Core words are the day's curated list, or the first 10 common words of each length. Other words still score as bonus.</p>
-   <p><strong>All words</strong> counts every word in the puzzle.</p>
-   <p>Bonus slots fill when you find every letter of the source word, a perfect reuse of its letter counts, every word of a length, or all words.</p>
-   <p class="muted">Hard mode hides the counts and the bonus slots.</p>`,
-  `<p>The day ends when you find every word, or when you tap <strong>I'm done</strong>.</p>
-   <p>You'll see your score and a result card you can copy to share.</p>
-   <p class="howto-score">A sample score: <strong>37</strong></p>`,
-];
-
-async function loadHowtoWords() {
-  if (!howtoWords) {
-    const all = await loadWords();
-    howtoWords = new Set(all.filter((w) => w.length >= 4 && w !== HOWTO_SAMPLE && fitsSource(w, HOWTO_SAMPLE)));
-  }
-  return howtoWords;
-}
-
-// The live example on step 2: checks against the sample word only.
-function wireHowtoExample() {
-  const form = document.getElementById("ex-form");
-  const input = document.getElementById("ex-input");
-  const msg = document.getElementById("ex-msg");
-  if (!form) return;
-  // Grey out GARDEN's letters as the user types, same as the source word in the game.
-  input.addEventListener("input", () => {
-    const tilesEl = document.getElementById("ex-tiles");
-    if (tilesEl) tilesEl.outerHTML = tiles(HOWTO_SAMPLE, input.value);
-  });
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const words = await loadHowtoWords();
-    const w = input.value.trim().toLowerCase();
-    input.value = "";
-    const tilesEl = document.getElementById("ex-tiles");
-    if (tilesEl) tilesEl.outerHTML = tiles(HOWTO_SAMPLE);
-    if (!/^[a-z]+$/.test(w)) return (msg.textContent = "Letters only.");
-    if (w.length < 4) return (msg.textContent = "Too short. 4 letters minimum.");
-    if (!fitsSource(w, HOWTO_SAMPLE)) return (msg.textContent = "Uses a letter GARDEN doesn't have enough of.");
-    if (howtoFound.includes(w)) return (msg.textContent = `Already found: ${w}.`);
-    if (!words.has(w)) return (msg.textContent = `Not in the word list: ${w}.`);
-    howtoFound.push(w);
-    msg.textContent = `${w}: +${pointsForLength(w.length)}. Nice.`;
-  });
-}
-
-function renderHowtoStep() {
-  el.howtoBody.innerHTML = HOWTO_BODY[howtoStep];
-  el.howtoBack.disabled = howtoStep === 0;
-  el.howtoNext.textContent = howtoStep === HOWTO_BODY.length - 1 ? "Start playing" : "Next";
-  el.howtoDots.innerHTML = HOWTO_BODY.map((_, i) => `<span class="dot${i === howtoStep ? " on" : ""}"></span>`).join("");
-  if (howtoStep === 1) wireHowtoExample();
-}
-
-function openHowto() {
-  howtoStep = 0;
-  renderHowtoStep();
-  if (typeof el.howto.showModal === "function") el.howto.showModal();
-  else el.howto.setAttribute("open", "");
+function tipsSeen() {
   try {
-    localStorage.setItem(HOWTO_KEY, "1");
+    return JSON.parse(localStorage.getItem(TIPS_KEY) || "[]");
   } catch {
-    // Storage blocked: the walkthrough may show again on the next visit.
+    return [];
   }
 }
 
-// Shown on a browser's first visit. If storage is blocked, the flag can't be kept, so it shows on each load.
-function showHowtoOnFirstVisit() {
-  let seen = false;
+function markTipSeen(key) {
   try {
-    seen = localStorage.getItem(HOWTO_KEY) === "1";
+    const seen = tipsSeen();
+    if (!seen.includes(key)) seen.push(key);
+    localStorage.setItem(TIPS_KEY, JSON.stringify(seen));
   } catch {
-    // Storage blocked: not seen, so the walkthrough shows.
+    // Storage blocked: the tip may show again, which is harmless.
   }
-  if (!seen) openHowto();
+}
+
+// Queue a tip. It shows now if nothing else is showing, otherwise after the current one is dismissed.
+function queueTip(key) {
+  if (tipsSeen().includes(key) || tipQueue.includes(key) || tipShowing === key) return;
+  tipQueue.push(key);
+  if (!tipShowing) nextTip();
+}
+
+function nextTip() {
+  const key = tipQueue.shift();
+  if (!key) {
+    tipShowing = null;
+    el.tip.hidden = true;
+    return;
+  }
+  tipShowing = key;
+  el.tipText.textContent = TIP_TEXT[key];
+  el.tip.hidden = false;
+}
+
+el.tipOk.addEventListener("click", () => {
+  if (tipShowing) markTipSeen(tipShowing);
+  nextTip();
+});
+
+// Paints the typed letters; letters not in the source word show in the "not accepted" red.
+let guessSource = "";
+function paintGuess() {
+  const m = el.guessMirror;
+  const typed = el.input.value.toLowerCase();
+  m.textContent = "";
+  let wrong = false;
+  for (const ch of typed) {
+    const span = document.createElement("span");
+    span.textContent = ch;
+    if (/[a-z]/.test(ch) && !guessSource.includes(ch)) {
+      span.className = "bad";
+      wrong = true;
+    }
+    m.appendChild(span);
+  }
+  m.style.transform = `translateX(${-el.input.scrollLeft}px)`;
+  if (wrong) queueTip("letter");
 }
 
 // Archive: past puzzles from the sheet. Each opens with ?day=YYYY-MM-DD.
@@ -1428,22 +1397,11 @@ el.archiveBtn.addEventListener("click", () => {
 });
 el.archiveClose.addEventListener("click", () => el.archive.close());
 
-el.howtoBtn.addEventListener("click", openHowto);
 el.settingsBtn.addEventListener("click", () => {
   if (typeof el.settings.showModal === "function") el.settings.showModal();
   else el.settings.setAttribute("open", "");
 });
 el.settingsClose.addEventListener("click", () => el.settings.close());
-el.howtoClose.addEventListener("click", () => el.howto.close());
-el.howtoBack.addEventListener("click", () => {
-  howtoStep = Math.max(0, howtoStep - 1);
-  renderHowtoStep();
-});
-el.howtoNext.addEventListener("click", () => {
-  if (howtoStep === HOWTO_BODY.length - 1) return el.howto.close();
-  howtoStep += 1;
-  renderHowtoStep();
-});
 
 async function init() {
   const today = todayET();
@@ -1495,7 +1453,6 @@ async function init() {
     if (dropped.length) console.warn(`Sourceword: curated core words not valid for ${date}: ${dropped.join(", ")}`);
     puzzle.curated = curated.size ? curated : null;
     start(date, puzzle);
-    showHowtoOnFirstVisit();
   } catch (err) {
     say("Couldn't load today's puzzle.", true);
     console.error(err);

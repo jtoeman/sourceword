@@ -46,7 +46,10 @@
 
 
     <form id="guess-form" autocomplete="off">
-      <input id="guess" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" autofocus aria-label="Your word" placeholder="Type a word">
+      <div class="guess-field">
+        <div class="guess-mirror" id="guess-mirror" aria-hidden="true"></div>
+        <input id="guess" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" autofocus aria-label="Your word" placeholder="Type a word">
+      </div>
       <button type="submit">Enter</button>
       <button type="button" id="hint" class="secondary">Hint (-1)</button>
       <button type="button" id="finish" class="secondary">I'm done</button>
@@ -54,6 +57,10 @@
 
     <p id="message" role="status" aria-live="polite"></p>
     <div id="toasts" class="toasts" aria-live="polite"></div>
+    <div id="tip" class="tip" role="status" hidden>
+      <p id="tip-text"></p>
+      <button type="button" id="tip-ok">Got it</button>
+    </div>
 
     <section>
       <div class="score-row">
@@ -124,25 +131,11 @@
       <ul id="archive-list" class="archive-list"></ul>
     </dialog>
 
-    <dialog id="howto" class="howto" aria-labelledby="howto-title">
-      <div class="howto-head">
-        <h2 id="howto-title">How to play</h2>
-        <button type="button" id="howto-close" class="secondary">Close</button>
-      </div>
-      <div id="howto-body"></div>
-      <div class="howto-nav">
-        <button type="button" id="howto-back" class="secondary">Back</button>
-        <span id="howto-dots" class="howto-dots" aria-hidden="true"></span>
-        <button type="button" id="howto-next">Next</button>
-      </div>
-    </dialog>
-
     <footer>
       <a class="brand" href="https://froobaloo.com/"><img class="brand-mark" src="froobaloo-mark.svg" alt="" width="20" height="20">froobaloo</a>
       <span class="build" id="build"></span>
       <span class="footer-right">
         <button type="button" id="archive-btn" class="secondary admin-toggle">Archive</button>
-        <button type="button" id="howto-btn" class="secondary admin-toggle">How to play</button>
         <a class="secondary admin-toggle btn-link" href="https://ko-fi.com/jeremyt37" target="_blank" rel="noopener">Support me</a>
       </span>
     </footer>
