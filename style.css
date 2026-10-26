@@ -968,12 +968,11 @@ footer {
 }
 
 /* The most recent guess, highlighted. Kept last so it overrides the bonus styling. */
-/* Hover and focus tooltips: the text comes from data-tip. */
+/* Tooltips: the text comes from data-tip. Hover only on real pointers, so taps on touch screens don't leave one stuck on. */
 [data-tip] {
   position: relative;
 }
 
-[data-tip]:hover::after,
 [data-tip]:focus-visible::after {
   content: attr(data-tip);
   position: absolute;
@@ -998,11 +997,48 @@ footer {
   pointer-events: none;
 }
 
-[data-tip].tip-end:hover::after,
+@media (hover: hover) and (pointer: fine) {
+  [data-tip]:hover:not(.tip-off)::after {
+    content: attr(data-tip);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: 240px;
+    padding: 0.4rem 0.6rem;
+    background: var(--surface);
+    color: var(--fg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: normal;
+    text-align: left;
+    z-index: 30;
+    pointer-events: none;
+  }
+}
+
 [data-tip].tip-end:focus-visible::after {
   left: auto;
   right: 0;
   transform: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-tip].tip-end:hover:not(.tip-off)::after {
+    left: auto;
+    right: 0;
+    transform: none;
+  }
+}
+
+[data-tip].tip-off::after {
+  display: none;
 }
 
 /* Words left unfound, revealed when the day ends. */
