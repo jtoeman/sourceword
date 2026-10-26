@@ -756,11 +756,6 @@ footer {
 }
 
 /* Stats and share. */
-#stats {
-  margin-top: 1rem;
-}
-
-#stats[hidden],
 #share-box[hidden] {
   display: none;
 }

@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b51";
+const BUILD = "0.3.0-b52";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -150,6 +150,11 @@ const el = {
   resRank: document.getElementById("res-rank"),
   resCore: document.getElementById("res-core"),
   resTime: document.getElementById("res-time"),
+  resHints: document.getElementById("res-hints"),
+  resMax: document.getElementById("res-max"),
+  statsClose: document.getElementById("stats-close"),
+  statsShare: document.getElementById("stats-share"),
+  statsNote: document.getElementById("stats-note"),
   timer: document.getElementById("timer"),
   guessMirror: document.getElementById("guess-mirror"),
   tip: document.getElementById("tip"),
@@ -709,6 +714,8 @@ function renderResults(date) {
   el.resScore.textContent = play.score;
   el.resRank.textContent = play.rank;
   el.resCore.textContent = `${play.goalFound} of ${play.goalTotal} ${play.goalMode === "ten" ? "core words" : "words"} found`;
+  el.resHints.textContent = `Hints used: ${play.hints || 0}`;
+  el.resMax.textContent = play.maxPoints ? `Max points with all bonuses: ${play.maxPoints}` : "";
   el.resTime.textContent = play.coreDone
     ? `You found all the core words in ${fmtTime(play.coreMs)}!`
     : `Core words not all found. Time played: ${fmtTime(play.activeMs || 0)}.`;
@@ -717,9 +724,45 @@ function renderResults(date) {
 }
 
 el.statsBtn.addEventListener("click", () => {
-  const opening = el.stats.hidden;
-  el.stats.hidden = !opening;
-  if (opening) renderStats(currentDay());
+  renderStats(currentDay());
+  el.statsNote.textContent = "";
+  if (typeof el.stats.showModal === "function") el.stats.showModal();
+  else el.stats.setAttribute("open", "");
+});
+el.statsClose.addEventListener("click", () => el.stats.close());
+el.stats.addEventListener("click", (e) => {
+  if (e.target === el.stats) el.stats.close();
+});
+
+// The stats in plain text, for sharing.
+function statsText() {
+  const days = playedDays();
+  const s = streaks(days, currentDay());
+  const achievements = Object.keys(JSON.parse(localStorage.getItem(ACH_KEY) || "{}")).length;
+  return [
+    "Sourceword stats",
+    `Played: ${days.length}`,
+    `Current streak: ${s.current}`,
+    `Best streak: ${s.best}`,
+    `Best score: ${days.reduce((m, d) => Math.max(m, d.score || 0), 0)}`,
+    `Achievements: ${achievements}`,
+    SITE_URL,
+  ].join("\n");
+}
+
+el.statsShare.addEventListener("click", async () => {
+  const text = statsText();
+  if (navigator.share) {
+    try {
+      await navigator.share({ text, title: "Sourceword stats" });
+      el.statsNote.textContent = "";
+      return;
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+    }
+  }
+  await copyResult(text);
+  el.statsNote.textContent = el.shareNote.textContent;
 });
 
 // The day on screen (today, or an archive day), kept off the visible label.
@@ -1154,6 +1197,7 @@ function finish(date, puzzle, play) {
   play.score = displayScore(play, puzzle);
   play.rank = rankFor(p);
   play.goalMode = GOAL;
+  play.maxPoints = scorePlay(puzzle.words, puzzle, 0).total;
   play.goalTotal = p.goal;
   play.goalFound = p.goal - p.remaining;
   play.grid = gridRows(puzzle, play);

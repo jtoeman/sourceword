@@ -39,10 +39,12 @@
       </div>
       <p class="result-line" id="res-core"></p>
       <p class="result-line" id="res-time"></p>
-      <a id="next-game" class="next-game" href="https://froobaloo.com/wordsummit/">Next game: Wordsummit →</a>
+      <p class="result-line" id="res-hints"></p>
+      <p class="result-line" id="res-max"></p>
       <button type="button" id="share-btn" class="share-btn">Share spoiler-free result</button>
       <p class="share-actions"><span id="share-note" class="muted-note" aria-live="polite"></span></p>
       <pre id="share-text" class="share"></pre>
+      <a id="next-game" class="next-game" href="https://froobaloo.com/wordsummit/">Next game: Wordsummit →</a>
     </section>
 
 
@@ -100,8 +102,11 @@
       <ul id="bonuses" class="chips"></ul>
     </section>
 
-    <section id="stats" hidden>
-      <h2>Stats</h2>
+    <dialog id="stats" class="howto" aria-labelledby="stats-title">
+      <div class="howto-head">
+        <h2 id="stats-title">Stats</h2>
+        <button type="button" id="stats-close" class="secondary">Close</button>
+      </div>
       <dl class="stat-grid">
         <div><dt>Played</dt><dd id="stat-played">0</dd></div>
         <div><dt>Current streak</dt><dd id="stat-streak">0</dd></div>
@@ -111,7 +116,12 @@
       <h3>Achievements</h3>
       <ul id="ach-list" class="ach-list"></ul>
       <p id="ach-empty" class="muted">None yet. Find a word to start.</p>
-    </section>
+      <div class="howto-nav">
+        <span></span>
+        <button type="button" id="stats-share">Share stats</button>
+      </div>
+      <p class="share-actions"><span id="stats-note" class="muted-note" aria-live="polite"></span></p>
+    </dialog>
 
     <section id="debug" hidden>
       <h2>Test view</h2>
