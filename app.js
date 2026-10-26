@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b52";
+const BUILD = "0.3.0-b53";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -54,7 +54,7 @@ try {
 const ADMIN = /\/admin37\/?$/.test(location.pathname);
 
 // Analytics: Amplitude HTTP API, called directly so no SDK is loaded. Events: Puzzle Started, Puzzle Completed, Share Result.
-const AMPLITUDE_KEY = "6ae928be8b28b6eb768a79b0fdf1fb3f";
+const AMPLITUDE_KEY = "951fd41a57001c5db6a4b568417877b4";
 const AMPLITUDE_URL = "https://api2.amplitude.com/2/httpapi";
 // Where the "Next game" button goes after a finished day.
 // Word reports go to the sheet through the Caseboard reminders Apps Script web app, which handles
