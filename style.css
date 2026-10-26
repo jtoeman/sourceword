@@ -1054,6 +1054,15 @@ footer {
   color: var(--bg);
 }
 
+/* End-day dialog title: the big accent heading, like the game title. */
+#done-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--accent);
+}
+
 /* Daily intro: today's word and targets, shown before the first guess. */
 .intro-kicker {
   margin: 0;
