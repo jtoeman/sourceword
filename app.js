@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b50";
+const BUILD = "0.3.0-b51";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -1430,8 +1430,12 @@ function renderDoneBody(puzzle, play) {
     }
     el.doneBody.append(h, ul);
   };
-  section("Core left", core);
-  section("Bonus left", bonus);
+  section("Core Words Remaining", core);
+  section("Bonuses Remaining", bonus);
+  // Core not finished: keep playing is the main choice. Core finished: I'm Done is.
+  const coreFinished = Object.values(core).every((n) => n === 0);
+  el.doneCancel.className = coreFinished ? "secondary" : "";
+  el.doneOk.className = coreFinished ? "" : "secondary";
   const note = document.createElement("p");
   note.textContent = "Ending now shows your current score and reveals the words you missed.";
   el.doneBody.appendChild(note);
@@ -1504,6 +1508,10 @@ function showIntro(date, puzzle, play) {
     }
   }, { once: true });
   el.welcomeOk.addEventListener("click", () => el.welcome.close(), { once: true });
+  // A tap on the dimmed backdrop closes it too, so it can't leave the page stuck.
+  el.welcome.addEventListener("click", (e) => {
+    if (e.target === el.welcome) el.welcome.close();
+  });
   if (typeof el.welcome.showModal === "function") el.welcome.showModal();
   else el.welcome.setAttribute("open", "");
 }
