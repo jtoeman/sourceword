@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b49";
+const BUILD = "0.3.0-b50";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -120,7 +120,7 @@ const el = {
   source: document.getElementById("source"),
   finish: document.getElementById("finish"),
   doneConfirm: document.getElementById("done-confirm"),
-  doneText: document.getElementById("done-text"),
+  doneBody: document.getElementById("done-body"),
   doneCancel: document.getElementById("done-cancel"),
   doneOk: document.getElementById("done-ok"),
   coreModal: document.getElementById("core-modal"),
@@ -504,10 +504,10 @@ function bonusSlots(puzzle, found, hints = 0) {
       filled: done,
     });
   }
-  // Core with no hints (3 points), every word with no hints (5 points), and the 37th word of the board (1 point).
-  slots.push({ id: "nohint:core", label: "core, no hints", points: 3, filled: coreLeft(puzzle, { found }) === 0 && hints === 0 });
-  slots.push({ id: "nohint:all", label: "all words, no hints", points: 5, filled: found.length === puzzle.words.length && hints === 0 });
-  slots.push({ id: "w37", label: "37 Words", points: 1, filled: found.length >= 37 });
+  // Hidden until earned: core with no hints (3 points), every word with no hints (5 points), and the 37th word of the board (1 point).
+  slots.push({ id: "nohint:core", label: "core, no hints", points: 3, secret: true, filled: coreLeft(puzzle, { found }) === 0 && hints === 0 });
+  slots.push({ id: "nohint:all", label: "all words, no hints", points: 5, secret: true, filled: found.length === puzzle.words.length && hints === 0 });
+  slots.push({ id: "w37", label: "37 Words", points: 1, secret: true, filled: found.length >= 37 });
   return slots;
 }
 
@@ -1014,7 +1014,7 @@ function render(puzzle, play) {
   for (const s of result.slots) if (s.filled) addBonus(`${s.label} (${s.points})`, "filled", bonusTip(s.label));
   const extraSorted = extra.slice().sort((a, b) => a.length - b.length || a.localeCompare(b));
   for (const w of extraSorted) addBonus(`${w} (${pointsForLength(w.length)})`, w === latest ? "filled latest" : "filled", "Extra word: any valid word of 4 letters or more counts toward your score.");
-  for (const s of result.slots) if (!s.filled) addBonus(`${s.label} (${s.points})`, "", bonusTip(s.label));
+  for (const s of result.slots) if (!s.filled && !s.secret) addBonus(`${s.label} (${s.points})`, "", bonusTip(s.label));
 
   el.score.textContent = displayScore(play, puzzle);
 
@@ -1337,12 +1337,7 @@ function start(date, puzzle) {
   el.finish.addEventListener("click", () => {
     const left = puzzle.words.length - play.found.length;
     if (left <= 0) return finish(date, puzzle, play);
-    const coreLeftNow = GOAL === "ten" ? coreLeft(puzzle, play) : 0;
-    const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
-    const hintLine = coreLeftNow > 0 ? " You can still use hints to find them." : "";
-    el.doneText.textContent = coreLeftNow > 0
-      ? `${plural(coreLeftNow, "core word")} still to find, and ${plural(left, "word")} left in all.${hintLine} Ending now shows your current score and reveals the words you missed.`
-      : `${plural(left, "word")} left to find. Ending now shows your current score and reveals the words you missed.`;
+    renderDoneBody(puzzle, play);
     if (typeof el.doneConfirm.showModal === "function") el.doneConfirm.showModal();
     else el.doneConfirm.setAttribute("open", "");
   });
@@ -1403,6 +1398,45 @@ function nextTip() {
   el.tip.hidden = false;
 }
 
+// What is left to find, split into core and bonus, counted per word length.
+function renderDoneBody(puzzle, play) {
+  const found = new Set(play.found);
+  const unfoundBy = countByLength(puzzle.words.filter((w) => !found.has(w)));
+  const goal = coreGoal(puzzle);
+  const coreFound = countByLength(splitCore(play.found, puzzle).core);
+  const core = {};
+  const bonus = {};
+  for (const n of Object.keys(unfoundBy).map(Number)) {
+    const coreN = Math.min(unfoundBy[n], Math.max(0, (goal[n] || 0) - (coreFound[n] || 0)));
+    core[n] = coreN;
+    bonus[n] = unfoundBy[n] - coreN;
+  }
+  el.doneBody.innerHTML = "";
+  const section = (title, counts) => {
+    const h = document.createElement("h2");
+    h.textContent = title;
+    const ul = document.createElement("ul");
+    ul.className = "msg-list";
+    const rows = Object.keys(counts).map(Number).filter((n) => counts[n] > 0).sort((a, b) => a - b);
+    if (!rows.length) {
+      const li = document.createElement("li");
+      li.textContent = "None left";
+      ul.appendChild(li);
+    }
+    for (const n of rows) {
+      const li = document.createElement("li");
+      li.textContent = `${counts[n]} ${n}-letter word${counts[n] === 1 ? "" : "s"}`;
+      ul.appendChild(li);
+    }
+    el.doneBody.append(h, ul);
+  };
+  section("Core left", core);
+  section("Bonus left", bonus);
+  const note = document.createElement("p");
+  note.textContent = "Ending now shows your current score and reveals the words you missed.";
+  el.doneBody.appendChild(note);
+}
+
 // Shown the moment every core word is found: keep going for bonuses, or end the day now.
 function showCoreModal(date, puzzle, play) {
   el.coreText.textContent = `You found every core word. You have ${displayScore(play, puzzle)} points. Keep playing to find the rest of the words and bonuses, or end your day now.`;
@@ -1440,7 +1474,7 @@ function showIntro(date, puzzle, play) {
   if (GOAL === "ten" && puzzle.words.length > targeted) {
     lines.push(plural(puzzle.words.length - targeted, "bonus words"));
   }
-  const otherPoints = bonusSlots(puzzle, []).filter((s) => s.label !== "all letters" && s.label !== "perfect reuse").reduce((sum, s) => sum + s.points, 0);
+  const otherPoints = bonusSlots(puzzle, []).filter((s) => !s.secret && s.label !== "all letters" && s.label !== "perfect reuse").reduce((sum, s) => sum + s.points, 0);
   if (otherPoints) lines.push(plural(otherPoints, "other bonus points"));
 
   el.welcomeBody.innerHTML = "";
@@ -1473,6 +1507,16 @@ function showIntro(date, puzzle, play) {
   if (typeof el.welcome.showModal === "function") el.welcome.showModal();
   else el.welcome.setAttribute("open", "");
 }
+
+// A tapped tooltip hides until the pointer leaves, so it doesn't stick on the button.
+document.addEventListener("click", (e) => {
+  const t = e.target.closest ? e.target.closest("[data-tip]") : null;
+  if (t) t.classList.add("tip-off");
+}, true);
+document.addEventListener("pointerout", (e) => {
+  const t = e.target.closest ? e.target.closest("[data-tip]") : null;
+  if (t && !t.contains(e.relatedTarget)) t.classList.remove("tip-off");
+}, true);
 
 el.tipOk.addEventListener("click", () => {
   if (tipShowing) markTipSeen(tipShowing);
