@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b46";
+const BUILD = "0.3.0-b47";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -159,6 +159,7 @@ const el = {
   archiveList: document.getElementById("archive-list"),
   archiveClose: document.getElementById("archive-close"),
   welcome: document.getElementById("welcome"),
+  welcomeBody: document.getElementById("welcome-body"),
   welcomeOk: document.getElementById("welcome-ok"),
   shareNote: document.getElementById("share-note"),
   lengths: document.getElementById("lengths"),
@@ -1232,6 +1233,7 @@ function start(date, puzzle) {
   });
   timed = { date, play };
   if (!play.done) queueTip("source");
+  showIntro(date, puzzle, play);
   render(puzzle, play);
 
   if (play.done) {
@@ -1368,22 +1370,60 @@ function nextTip() {
   el.tip.hidden = false;
 }
 
-// First visit only: a short welcome. Marked seen when it closes, however it closes.
-const WELCOME_KEY = "sourceword:welcome-seen";
-function showWelcome() {
+// Once per day, before the first guess: today's word and the targets for it. Seen per day, per browser.
+function introKey(date) {
+  return `sourceword:intro:${date}`;
+}
+
+function showIntro(date, puzzle, play) {
+  if (play.done || play.found.length) return;
   try {
-    if (localStorage.getItem(WELCOME_KEY) === "1") return;
+    if (localStorage.getItem(introKey(date)) === "1") return;
   } catch {
-    // Storage blocked: the welcome shows on each load.
+    // Storage blocked: the intro shows on each load.
   }
-  const mark = () => {
+  const plural = (n, word) => `${n} ${word}`;
+  const lines = [];
+  const targets = GOAL === "ten" ? coreGoal(puzzle) : countByLength(puzzle.words);
+  const lengths = Object.keys(targets).map(Number).sort((x, y) => x - y);
+  let targeted = 0;
+  for (const n of lengths) {
+    if (!targets[n]) continue;
+    targeted += targets[n];
+    lines.push(plural(targets[n], `${n}-letter words`));
+  }
+  if (GOAL === "ten" && puzzle.words.length > targeted) {
+    lines.push(plural(puzzle.words.length - targeted, "bonus words"));
+  }
+  const otherPoints = bonusSlots(puzzle, []).filter((s) => s.label !== "all letters" && s.label !== "perfect reuse").reduce((sum, s) => sum + s.points, 0);
+  if (otherPoints) lines.push(plural(otherPoints, "other bonus points"));
+
+  el.welcomeBody.innerHTML = "";
+  const kicker = document.createElement("p");
+  kicker.className = "intro-kicker";
+  kicker.textContent = "Today's Sourceword:";
+  const word = document.createElement("p");
+  word.className = "intro-word";
+  word.textContent = puzzle.source.toUpperCase();
+  const max = document.createElement("p");
+  max.className = "intro-max";
+  max.innerHTML = `<strong>Max Points:</strong> ${scorePlay(puzzle.words, puzzle).total}`;
+  const list = document.createElement("ul");
+  list.className = "intro-list";
+  for (const line of lines) {
+    const li = document.createElement("li");
+    li.textContent = line;
+    list.appendChild(li);
+  }
+  el.welcomeBody.append(kicker, word, max, list);
+
+  el.welcome.addEventListener("close", () => {
     try {
-      localStorage.setItem(WELCOME_KEY, "1");
+      localStorage.setItem(introKey(date), "1");
     } catch {
       // Storage blocked: nothing to save.
     }
-  };
-  el.welcome.addEventListener("close", mark, { once: true });
+  }, { once: true });
   el.welcomeOk.addEventListener("click", () => el.welcome.close(), { once: true });
   if (typeof el.welcome.showModal === "function") el.welcome.showModal();
   else el.welcome.setAttribute("open", "");
@@ -1521,7 +1561,6 @@ async function init() {
     if (dropped.length) console.warn(`Sourceword: curated core words not valid for ${date}: ${dropped.join(", ")}`);
     puzzle.curated = curated.size ? curated : null;
     start(date, puzzle);
-    showWelcome();
   } catch (err) {
     say("Couldn't load today's puzzle.", true);
     console.error(err);

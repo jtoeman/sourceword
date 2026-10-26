@@ -1000,3 +1000,33 @@ footer {
   background: var(--good);
   color: var(--bg);
 }
+
+/* Daily intro: today's word and targets, shown before the first guess. */
+.intro-kicker {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.intro-word {
+  margin: 0.25rem 0 0.5rem;
+  color: var(--accent);
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.intro-max {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.intro-list {
+  margin: 0 0 0.5rem;
+  padding-left: 1.2rem;
+  line-height: 1.6;
+}
