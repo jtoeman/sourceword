@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b48";
+const BUILD = "0.3.0-b49";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -449,7 +449,7 @@ function fillSlots(points, earned) {
 }
 
 // Every bonus slot for this puzzle and goal. Slots show a label and points, never a word.
-function bonusSlots(puzzle, found) {
+function bonusSlots(puzzle, found, hints = 0) {
   const source = puzzle.source;
   const srcCounts = letterCounts(source);
   const srcLetters = Object.keys(srcCounts);
@@ -504,13 +504,17 @@ function bonusSlots(puzzle, found) {
       filled: done,
     });
   }
+  // Core with no hints (3 points), every word with no hints (5 points), and the 37th word of the board (1 point).
+  slots.push({ id: "nohint:core", label: "core, no hints", points: 3, filled: coreLeft(puzzle, { found }) === 0 && hints === 0 });
+  slots.push({ id: "nohint:all", label: "all words, no hints", points: 5, filled: found.length === puzzle.words.length && hints === 0 });
+  slots.push({ id: "w37", label: "37 Words", points: 1, filled: found.length >= 37 });
   return slots;
 }
 
 // Scores a play from the found words alone, so bonuses are always derived, never stored.
-function scorePlay(found, puzzle) {
+function scorePlay(found, puzzle, hints = 0) {
   const base = found.reduce((sum, w) => sum + pointsForLength(w.length), 0);
-  const slots = bonusSlots(puzzle, found);
+  const slots = bonusSlots(puzzle, found, hints);
   const earned = slots.filter((s) => s.filled);
   const bonusTotal = earned.reduce((sum, s) => sum + s.points, 0);
   return { base, slots, earned, total: base + bonusTotal };
@@ -754,6 +758,25 @@ async function copyResult(text) {
   }
 }
 
+// Success message: the word on its own line, then one bullet per thing it earned.
+function sayList(head, items) {
+  el.message.classList.remove("bad");
+  el.message.innerHTML = "";
+  const p = document.createElement("p");
+  p.textContent = head;
+  el.message.appendChild(p);
+  if (items.length) {
+    const ul = document.createElement("ul");
+    ul.className = "msg-list";
+    for (const text of items) {
+      const li = document.createElement("li");
+      li.textContent = text;
+      ul.appendChild(li);
+    }
+    el.message.appendChild(ul);
+  }
+}
+
 function say(text, isBad = false) {
   el.message.textContent = text;
   el.message.classList.toggle("bad", isBad);
@@ -856,7 +879,7 @@ function coreGoal(puzzle) {
 
 // Score on screen: words and bonuses earned, less one point per hint, never below 0.
 function displayScore(play, puzzle) {
-  return Math.max(0, scorePlay(play.found, puzzle).total - (play.hints || 0));
+  return Math.max(0, scorePlay(play.found, puzzle, play.hints || 0).total - (play.hints || 0));
 }
 
 // Words a hint may point at: core words still to find. Once those are done, any word still to find (bonus).
@@ -941,6 +964,9 @@ function progress(puzzle, play) {
 // What a bonus slot asks for, shown as a tooltip.
 function bonusTip(label) {
   if (label === "all letters") return "Find a word that uses every letter of the source word. Counts once per day.";
+  if (label === "core, no hints") return "Find every core word without using a hint.";
+  if (label === "all words, no hints") return "Find every word without using a hint.";
+  if (label === "37 Words") return "The 37th word you find on a board.";
   if (label === "perfect reuse") return "Find an anagram of the source word, using every letter the same number of times.";
   if (label === "core complete") return GOAL === "ten" ? "Find every core word." : "Find every word.";
   if (label === "all words") return "Find every word.";
@@ -953,7 +979,7 @@ function bonusTip(label) {
 
 function render(puzzle, play) {
   current = { puzzle, play };
-  const result = scorePlay(play.found, puzzle);
+  const result = scorePlay(play.found, puzzle, play.hints || 0);
   const { core, extra } = splitFound(play.found, puzzle);
 
   el.found.innerHTML = "";
@@ -1039,7 +1065,7 @@ const QUICK_CORE_MS = 3 * 60 * 1000;
 // streakNow is the current streak when the day is finished, or null otherwise.
 function achievementList(puzzle, play, streakNow) {
   const found = play.found;
-  const slots = bonusSlots(puzzle, found);
+  const slots = bonusSlots(puzzle, found, play.hints || 0);
   const p = progress(puzzle, play);
   const list = [
     { id: "first_word", name: "First word", desc: "Find your first word of the day.", ok: found.length >= 1 },
@@ -1263,7 +1289,7 @@ function start(date, puzzle) {
     if (BLOCKED.has(word)) return say("Not accepted.", true);
     if (!puzzle.wordSet.has(word)) return sayReportable(`Not in the word list: ${word}.`, word, date, puzzle.source);
 
-    const before = new Set(scorePlay(play.found, puzzle).earned.map((s) => s.id));
+    const before = new Set(scorePlay(play.found, puzzle, play.hints || 0).earned.map((s) => s.id));
     play.found.push(word);
     const coreNow = checkCore(play, puzzle);
     savePlay(date, play);
@@ -1273,11 +1299,13 @@ function start(date, puzzle) {
     showToasts(won);
 
     const earned = result.earned.filter((s) => !before.has(s.id));
-    const bonusText = earned.map((s) => ` ${s.label} (${s.points}).`).join("");
-    const coreText = !coreNow ? "" : GOAL === "ten"
-      ? ` Core complete in ${fmtTime(play.coreMs)}. Bonus words still count.`
-      : ` All core words found in ${fmtTime(play.coreMs)}.`;
-    say(`${word} (${pointsForLength(word.length)}).${bonusText}${coreText}`);
+    const items = earned.map((s) => `${s.label} (${s.points})`);
+    if (coreNow) {
+      items.push(GOAL === "ten"
+        ? `Core complete in ${fmtTime(play.coreMs)}. Bonus words still count.`
+        : `All core words found in ${fmtTime(play.coreMs)}.`);
+    }
+    sayList(`${word} (${pointsForLength(word.length)}).`, items);
     queueTip("score");
     queueTip("hint");
     if (earned.length) queueTip("bonus");

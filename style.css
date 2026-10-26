@@ -285,6 +285,23 @@ button.secondary {
   color: var(--bad);
 }
 
+#message p,
+#message ul {
+  margin: 0;
+}
+
+/* Success message: the word on one line, then one bullet per thing it earned. */
+.msg-list {
+  margin: 0.25rem 0 0;
+  padding-left: 1.2rem;
+  text-align: left;
+  list-style: disc;
+}
+
+.msg-list li + li {
+  margin-top: 0.1rem;
+}
+
 /* Score: label and number share one size. */
 .score {
   margin: 0.5rem 0 0;
