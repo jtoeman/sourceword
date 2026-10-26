@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b47";
+const BUILD = "0.3.0-b48";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -123,6 +123,10 @@ const el = {
   doneText: document.getElementById("done-text"),
   doneCancel: document.getElementById("done-cancel"),
   doneOk: document.getElementById("done-ok"),
+  coreModal: document.getElementById("core-modal"),
+  coreText: document.getElementById("core-text"),
+  coreKeep: document.getElementById("core-keep"),
+  coreDone: document.getElementById("core-done"),
   build: document.getElementById("build"),
   date: document.getElementById("date"),
   debug: document.getElementById("debug"),
@@ -1279,6 +1283,7 @@ function start(date, puzzle) {
     if (earned.length) queueTip("bonus");
 
     if (play.found.length === puzzle.words.length) finish(date, puzzle, play);
+    else if (coreNow) showCoreModal(date, puzzle, play);
   });
 
   el.hint.addEventListener("click", () => {
@@ -1368,6 +1373,18 @@ function nextTip() {
   tipShowing = key;
   el.tipText.textContent = TIP_TEXT[key];
   el.tip.hidden = false;
+}
+
+// Shown the moment every core word is found: keep going for bonuses, or end the day now.
+function showCoreModal(date, puzzle, play) {
+  el.coreText.textContent = `You found every core word. You have ${displayScore(play, puzzle)} points. Keep playing to find the rest of the words and bonuses, or end your day now.`;
+  el.coreKeep.onclick = () => el.coreModal.close();
+  el.coreDone.onclick = () => {
+    el.coreModal.close();
+    finish(date, puzzle, play);
+  };
+  if (typeof el.coreModal.showModal === "function") el.coreModal.showModal();
+  else el.coreModal.setAttribute("open", "");
 }
 
 // Once per day, before the first guess: today's word and the targets for it. Seen per day, per browser.

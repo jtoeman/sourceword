@@ -62,6 +62,17 @@
     <p id="message" role="status" aria-live="polite"></p>
     <div id="toasts" class="toasts" aria-live="polite"></div>
 
+    <dialog id="core-modal" class="howto" aria-labelledby="core-title">
+      <div class="howto-head">
+        <h2 id="core-title">All core words found!</h2>
+      </div>
+      <p id="core-text"></p>
+      <div class="howto-nav">
+        <button type="button" id="core-keep" class="secondary">Keep Playing</button>
+        <button type="button" id="core-done">I'm Done</button>
+      </div>
+    </dialog>
+
     <dialog id="done-confirm" class="howto" aria-labelledby="done-title">
       <div class="howto-head">
         <h2 id="done-title">End your day?</h2>
