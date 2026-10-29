@@ -1,0 +1,58 @@
+name: Publish Sourceword site
+
+# Runs on every push to main. Copies the game into the site branch (which the froobaloo.com
+# deploy reads from), then pings the hub so froobaloo.com rebuilds.
+#
+# Needs one repository secret, DEPLOY_TOKEN: a fine-grained token with Contents: read and write on
+# jtoeman/froobaloo, used only to send the game-updated ping.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-site
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: src
+
+      - uses: actions/checkout@v4
+        with:
+          ref: site
+          path: site
+
+      - name: Copy the game into the site branch
+        run: bash src/tools/make_site.sh "$GITHUB_WORKSPACE/site"
+
+      - name: Commit and push the site branch
+        id: commit
+        working-directory: site
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No site changes."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          VERSION=$(grep -o 'BUILD = "[^"]*"' "$GITHUB_WORKSPACE/src/app.js" | cut -d'"' -f2)
+          git commit -m "Deploy ${VERSION} to the site"
+          git push origin HEAD:site
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Ping the hub to rebuild froobaloo.com
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: gh api repos/jtoeman/froobaloo/dispatches -f event_type=game-updated
