@@ -999,9 +999,9 @@ function progress(puzzle, play) {
     const left = goalN - foundN;
     remaining += left;
     goal += goalN;
-    perLength.push(`${n}-letter (${left})`);
+    perLength.push({ n, left });
   }
-  return { remaining, goal, text: perLength.join(", ") };
+  return { remaining, goal, perLength };
 }
 
 // What a bonus slot asks for, shown as a tooltip.
@@ -1075,7 +1075,16 @@ function render(puzzle, play) {
     el.rank.textContent = ""; // milestone copy is off the game screen for now (results still show it)
     el.rank.hidden = true;
     el.lengths.hidden = false;
-    el.lengths.textContent = p.text;
+    el.lengths.textContent = "";
+    p.perLength.forEach(({ n, left }, i) => {
+      if (i) el.lengths.appendChild(document.createTextNode(", "));
+      el.lengths.appendChild(document.createTextNode(`${n}-letter (`));
+      const count = document.createElement("span");
+      count.className = "length-count";
+      count.textContent = String(left);
+      el.lengths.appendChild(count);
+      el.lengths.appendChild(document.createTextNode(")"));
+    });
   }
 
   const over = play.done;
