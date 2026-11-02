@@ -494,6 +494,10 @@ button.secondary {
   font-variant-numeric: tabular-nums;
 }
 
+.length-count {
+  color: var(--accent);
+}
+
 .lengths[hidden] {
   display: none;
 }
