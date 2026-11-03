@@ -4,8 +4,8 @@ name: Publish to Froobaloo
 # which copies this repo's files straight from `main`. This asks the hub to rebuild after each
 # push, so changes go live in a couple of minutes.
 #
-# Needs one repository secret, DEPLOY_TOKEN: a fine-grained token with Contents: read and write on
-# jtoeman/froobaloo, used only to send the game-updated ping.
+# Needs one repository secret, HUB_TOKEN (the shared hub token used by every game repo): it must be
+# allowed to send repository dispatches to jtoeman/froobaloo.
 
 on:
   push:
@@ -21,5 +21,5 @@ jobs:
     steps:
       - name: Ask the Froobaloo hub to rebuild
         env:
-          GH_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+          GH_TOKEN: ${{ secrets.HUB_TOKEN }}
         run: gh api repos/jtoeman/froobaloo/dispatches -f event_type=game-updated -f "client_payload[game]=sourceword"
