@@ -1,4 +1,4 @@
-// Sourceword, build 0.3.0-b27
+// Sourceword, build 0.3.0-b55
 // Scoring: base by length (Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11), 4-letter minimum.
 // Bonus slots, each worth the points of one word of that length:
 //   - all letters: a valid word using every distinct source letter (one bonus per day, worth the lowest-valued such word)
@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b54";
+const BUILD = "0.3.0-b55";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -53,8 +53,8 @@ try {
 // Admin test view: only on the /admin/ page. It is not linked from the game. Remove before shipping.
 const ADMIN = /\/admin37\/?$/.test(location.pathname);
 
-// Analytics: Amplitude HTTP API, called directly so no SDK is loaded. Events: Puzzle Started, Puzzle Completed, Share Result.
-const AMPLITUDE_KEY = "951fd41a57001c5db6a4b568417877b4";
+// Analytics: Amplitude HTTP API, called directly so no SDK is loaded. Events: Puzzle Started, Puzzle Completed, Share Clicked.
+const AMPLITUDE_KEY = "6ae928be8b28b6eb768a79b0fdf1fb3f"; // Amplitude project: Froobaloo (split by the game property)
 const AMPLITUDE_URL = "https://api2.amplitude.com/2/httpapi";
 // Where the "Next game" button goes after a finished day.
 // Word reports go to the sheet through the Caseboard reminders Apps Script web app, which handles
@@ -773,7 +773,7 @@ function currentDay() {
 // Opens the share sheet with the result text (iOS/Android). Falls back to copying where sharing is unavailable.
 el.shareBtn.addEventListener("click", async () => {
   const text = el.shareText.textContent;
-  track("Share Result", { date: currentDay(), mode: MODE, goal: GOAL });
+  track("Share Clicked", { date: currentDay(), mode: MODE, goal: GOAL });
   if (navigator.share) {
     try {
       await navigator.share({ text, title: "Sourceword" });
