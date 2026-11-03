@@ -513,6 +513,10 @@ function bonusSlots(puzzle, found, hints = 0) {
   slots.push({ id: "nohint:core", label: "core, no hints", points: 3, secret: true, filled: coreLeft(puzzle, { found }) === 0 && hints === 0 });
   slots.push({ id: "nohint:all", label: "all words, no hints", points: 5, secret: true, filled: found.length === puzzle.words.length && hints === 0 });
   slots.push({ id: "w37", label: "37 Words", points: 1, secret: true, filled: found.length >= 37 });
+  // One hidden bonus per distinct letter of the source word: find any word (core or bonus) that starts with it.
+  for (const ch of new Set(source)) {
+    slots.push({ id: `letter:${ch}`, label: `starts with ${ch.toUpperCase()}`, points: 1, secret: true, filled: found.some((w) => w[0] === ch) });
+  }
   return slots;
 }
 
@@ -1010,6 +1014,8 @@ function bonusTip(label) {
   if (label === "core, no hints") return "Find every core word without using a hint.";
   if (label === "all words, no hints") return "Find every word without using a hint.";
   if (label === "37 Words") return "The 37th word you find on a board.";
+  const start = label.match(/^starts with ([A-Z])$/);
+  if (start) return `Find a word that starts with ${start[1]}.`;
   if (label === "perfect reuse") return "Find an anagram of the source word, using every letter the same number of times.";
   if (label === "core complete") return GOAL === "ten" ? "Find every core word." : "Find every word.";
   if (label === "all words") return "Find every word.";
