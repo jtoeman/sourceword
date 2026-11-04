@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b56";
+const BUILD = "0.3.0-b57";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -454,7 +454,7 @@ function fillSlots(points, earned) {
 }
 
 // Every bonus slot for this puzzle and goal. Slots show a label and points, never a word.
-function bonusSlots(puzzle, found, hints = 0) {
+function bonusSlots(puzzle, found, hints = 0, done = false) {
   const source = puzzle.source;
   const srcCounts = letterCounts(source);
   const srcLetters = Object.keys(srcCounts);
@@ -513,6 +513,11 @@ function bonusSlots(puzzle, found, hints = 0) {
   slots.push({ id: "nohint:core", label: "core, no hints", points: 3, secret: true, filled: coreLeft(puzzle, { found }) === 0 && hints === 0 });
   slots.push({ id: "nohint:all", label: "all words, no hints", points: 5, secret: true, filled: found.length === puzzle.words.length && hints === 0 });
   slots.push({ id: "w37", label: "37 Words", points: 1, secret: true, filled: found.length >= 37 });
+  // Every word, found longest first and 4-letter words last (found order matters).
+  const longestFirst = found.every((w, i) => i === 0 || w.length <= found[i - 1].length);
+  slots.push({ id: "order:longest", label: "longest to shortest", points: 5, secret: true, filled: found.length === puzzle.words.length && longestFirst });
+  // Day finished with no hints used at all.
+  slots.push({ id: "nohint:none", label: "no hints at all", points: 2, secret: true, filled: done && hints === 0 });
   // One hidden bonus per distinct letter of the source word: find any word (core or bonus) that starts with it.
   for (const ch of new Set(source)) {
     slots.push({ id: `letter:${ch}`, label: `starts with ${ch.toUpperCase()}`, points: 1, secret: true, filled: found.some((w) => w[0] === ch) });
@@ -521,9 +526,9 @@ function bonusSlots(puzzle, found, hints = 0) {
 }
 
 // Scores a play from the found words alone, so bonuses are always derived, never stored.
-function scorePlay(found, puzzle, hints = 0) {
+function scorePlay(found, puzzle, hints = 0, done = false) {
   const base = found.reduce((sum, w) => sum + pointsForLength(w.length), 0);
-  const slots = bonusSlots(puzzle, found, hints);
+  const slots = bonusSlots(puzzle, found, hints, done);
   const earned = slots.filter((s) => s.filled);
   const bonusTotal = earned.reduce((sum, s) => sum + s.points, 0);
   return { base, slots, earned, total: base + bonusTotal };
@@ -926,7 +931,7 @@ function coreGoal(puzzle) {
 
 // Score on screen: words and bonuses earned, less one point per hint, never below 0.
 function displayScore(play, puzzle) {
-  return Math.max(0, scorePlay(play.found, puzzle, play.hints || 0).total - (play.hints || 0));
+  return Math.max(0, scorePlay(play.found, puzzle, play.hints || 0, play.done).total - (play.hints || 0));
 }
 
 // Words a hint may point at: core words still to find. Once those are done, any word still to find (bonus).
@@ -1014,6 +1019,8 @@ function bonusTip(label) {
   if (label === "core, no hints") return "Find every core word without using a hint.";
   if (label === "all words, no hints") return "Find every word without using a hint.";
   if (label === "37 Words") return "The 37th word you find on a board.";
+  if (label === "longest to shortest") return "Find every word, longest first and 4-letter words last.";
+  if (label === "no hints at all") return "Finish the day without using a hint.";
   const start = label.match(/^starts with ([A-Z])$/);
   if (start) return `Find a word that starts with ${start[1]}.`;
   if (label === "perfect reuse") return "Find an anagram of the source word, using every letter the same number of times.";
@@ -1028,7 +1035,7 @@ function bonusTip(label) {
 
 function render(puzzle, play) {
   current = { puzzle, play };
-  const result = scorePlay(play.found, puzzle, play.hints || 0);
+  const result = scorePlay(play.found, puzzle, play.hints || 0, play.done);
   const { core, extra } = splitFound(play.found, puzzle);
 
   el.found.innerHTML = "";
@@ -1060,10 +1067,10 @@ function render(puzzle, play) {
     if (tip) li.dataset.tip = tip;
     el.bonuses.appendChild(li);
   };
-  for (const s of result.slots) if (s.filled) addBonus(`${s.label} (${s.points})`, "filled", bonusTip(s.label));
+  for (const s of result.slots) if (s.filled) addBonus(`${s.label} (bonus!) (${s.points})`, "filled", bonusTip(s.label));
   const extraSorted = extra.slice().sort((a, b) => a.length - b.length || a.localeCompare(b));
-  for (const w of extraSorted) addBonus(`${w} (${pointsForLength(w.length)})`, w === latest ? "filled latest" : "filled", "Extra word: any valid word of 4 letters or more counts toward your score.");
-  for (const s of result.slots) if (!s.filled && !s.secret) addBonus(`${s.label} (${s.points})`, "", bonusTip(s.label));
+  for (const w of extraSorted) addBonus(`${w} (bonus!) (${pointsForLength(w.length)})`, w === latest ? "filled latest" : "filled", "Extra word: any valid word of 4 letters or more counts toward your score.");
+  for (const s of result.slots) if (!s.filled && !s.secret) addBonus(`${s.label} (bonus!) (${s.points})`, "", bonusTip(s.label));
 
   el.score.textContent = displayScore(play, puzzle);
 
@@ -1123,7 +1130,7 @@ const QUICK_CORE_MS = 3 * 60 * 1000;
 // streakNow is the current streak when the day is finished, or null otherwise.
 function achievementList(puzzle, play, streakNow) {
   const found = play.found;
-  const slots = bonusSlots(puzzle, found, play.hints || 0);
+  const slots = bonusSlots(puzzle, found, play.hints || 0, play.done);
   const p = progress(puzzle, play);
   const list = [
     { id: "first_word", name: "First word", desc: "Find your first word of the day.", ok: found.length >= 1 },
@@ -1212,7 +1219,9 @@ function finish(date, puzzle, play) {
   play.score = displayScore(play, puzzle);
   play.rank = rankFor(p);
   play.goalMode = GOAL;
-  play.maxPoints = scorePlay(puzzle.words, puzzle, 0).total;
+  // Max: every word, longest first, no hints, day finished.
+  const longestFirst = puzzle.words.slice().sort((a, b) => b.length - a.length);
+  play.maxPoints = scorePlay(longestFirst, puzzle, 0, true).total;
   play.goalTotal = p.goal;
   play.goalFound = p.goal - p.remaining;
   play.grid = gridRows(puzzle, play);
@@ -1348,7 +1357,7 @@ function start(date, puzzle) {
     if (BLOCKED.has(word)) return say("Not accepted.", true);
     if (!puzzle.wordSet.has(word)) return sayReportable(`Not in the word list: ${word}.`, word, date, puzzle.source);
 
-    const before = new Set(scorePlay(play.found, puzzle, play.hints || 0).earned.map((s) => s.id));
+    const before = new Set(scorePlay(play.found, puzzle, play.hints || 0, play.done).earned.map((s) => s.id));
     play.found.push(word);
     const coreNow = checkCore(play, puzzle);
     savePlay(date, play);
