@@ -1,4 +1,4 @@
-// Sourceword, build 0.3.0-b55
+// Sourceword, build 0.3.0-b58
 // Scoring: base by length (Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11), 4-letter minimum.
 // Bonus slots, each worth the points of one word of that length:
 //   - all letters: a valid word using every distinct source letter (one bonus per day, worth the lowest-valued such word)
@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b57";
+const BUILD = "0.3.0-b58";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };

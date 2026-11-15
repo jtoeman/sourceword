@@ -521,6 +521,24 @@ button.secondary {
   font-variant-numeric: tabular-nums;
 }
 
+/* (?) hint beside a heading: shows its text on hover, focus or tap. */
+.help-hint {
+  display: inline-grid;
+  place-items: center;
+  width: 1.1em;
+  height: 1.1em;
+  margin-left: 0.3em;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 0.7em;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  vertical-align: middle;
+  cursor: help;
+  opacity: 0.8;
+}
+
 /* Bonus slots: hollow until earned, then filled orange. */
 #bonuses li {
   background: transparent;
