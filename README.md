@@ -35,6 +35,8 @@ Each daily source word must have 15 to 50 valid words (4+ letters). Check a cand
 
 Step 8 (build 0.3.0-b21): obscure words (not common English, see common.json) are allowed and always bonus. Core is the day's curated list from the sheet's Core column (column H, comma-separated) if it has one, otherwise the first 10 common words per length. blocked.json lists words that are never accepted or counted. A blocked guess gets "Not accepted."
 
+Build 0.3.0-b59: standard analytics events Game Loaded (every time the day is ready) and Game Completed (when the day is finished, with score, score_max and rank), sent next to Puzzle Started and Puzzle Completed. Every event carries build. Share Clicked also carries score and puzzle_date.
+
 Build 0.3.0-b58: alldle-verify meta tag added to the page head. A (?) hint beside Bonuses Found explains the bonuses.
 
 Step 17 (build 0.3.0-b55): analytics goes to the Froobaloo Amplitude project (key 6ae928be...), split by the game property. The share event is named Share Clicked (was Share Result).

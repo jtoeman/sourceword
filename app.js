@@ -1,4 +1,4 @@
-// Sourceword, build 0.3.0-b58
+// Sourceword, build 0.3.0-b59
 // Scoring: base by length (Boggle table: 4 = 1, 5 = 2, 6 = 3, 7 = 5, 8+ = 11), 4-letter minimum.
 // Bonus slots, each worth the points of one word of that length:
 //   - all letters: a valid word using every distinct source letter (one bonus per day, worth the lowest-valued such word)
@@ -11,7 +11,7 @@
 // A day's word is used only if its valid-word count is inside the band (15 to 50, 4+ letters).
 // Today's word is shown if it's valid; otherwise the most recent earlier valid day is shown, with its date.
 
-const BUILD = "0.3.0-b58";
+const BUILD = "0.3.0-b59";
 const SITE_URL = "https://froobaloo.com/sourceword/"; // path to confirm on launch
 const STORE_PREFIX = "sourceword:play:";
 const MODES = { normal: 4, hard: 4 };
@@ -53,7 +53,8 @@ try {
 // Admin test view: only on the /admin/ page. It is not linked from the game. Remove before shipping.
 const ADMIN = /\/admin37\/?$/.test(location.pathname);
 
-// Analytics: Amplitude HTTP API, called directly so no SDK is loaded. Events: Puzzle Started, Puzzle Completed, Share Clicked.
+// Analytics: Amplitude HTTP API, called directly so no SDK is loaded. Events: Puzzle Started, Puzzle Completed, Share Clicked,
+// plus the standard cross-game Game Loaded and Game Completed, sent next to the old names.
 const AMPLITUDE_KEY = "6ae928be8b28b6eb768a79b0fdf1fb3f"; // Amplitude project: Froobaloo (split by the game property)
 const AMPLITUDE_URL = "https://api2.amplitude.com/2/httpapi";
 // Where the "Next game" button goes after a finished day.
@@ -95,7 +96,8 @@ function track(eventType, props) {
             insert_id: randomId(),
             platform: "Web",
             app_version: BUILD,
-            event_properties: { ...props, game: "sourceword" },
+            // game and build are set here, in the one place every event passes through. game is always lowercase.
+            event_properties: { ...props, game: "sourceword", build: BUILD },
           },
         ],
       }),
@@ -782,7 +784,8 @@ function currentDay() {
 // Opens the share sheet with the result text (iOS/Android). Falls back to copying where sharing is unavailable.
 el.shareBtn.addEventListener("click", async () => {
   const text = el.shareText.textContent;
-  track("Share Clicked", { date: currentDay(), mode: MODE, goal: GOAL });
+  const sharedDay = currentDay();
+  track("Share Clicked", { date: sharedDay, puzzle_date: sharedDay, mode: MODE, goal: GOAL, score: loadPlay(sharedDay).score });
   if (navigator.share) {
     try {
       await navigator.share({ text, title: "Sourceword" });
@@ -1247,6 +1250,15 @@ function finish(date, puzzle, play) {
       core_found: play.goalFound,
       core_total: play.goalTotal,
     });
+    // Standard cross-game event, sent next to Puzzle Completed. No result: the day has no win or lose,
+    // the player finishes and gets a rank.
+    track("Game Completed", {
+      puzzle_date: date,
+      mode: play.mode,
+      score: play.score,
+      score_max: play.maxPoints,
+      rank: play.rank,
+    });
   }
   el.results.scrollIntoView?.({ behavior: "smooth", block: "start" });
 }
@@ -1317,6 +1329,8 @@ window.addEventListener("pagehide", flushTime);
 function start(date, puzzle) {
   const play = loadPlay(date);
   if (!play.mode) play.mode = MODE;
+  // Standard cross-game event: every time the day's puzzle is ready. (Puzzle Started only fires the first time.)
+  track("Game Loaded", { puzzle_date: date, mode: play.mode });
   if (!play.started && !play.done && play.found.length === 0) {
     play.started = true;
     savePlay(date, play);
